@@ -1,187 +1,145 @@
 # Still
 
-A small, local-first Android weight journal, inspired by DroidWeight's simplicity.
-This is a new implementation, not a modification of the original app.
+A simple Android weight journal inspired by DroidWeight, built with Kotlin and
+Jetpack Compose.
 
-The header retains the lowercase `still` wordmark. Interface copy uses direct
-labels rather than the app name in sentences; repeated privacy badges and
-motivational taglines are omitted. Backup, restore, and permission warnings remain
-visible where they affect an action.
+## Features
 
-## What's here
+- Daily weight entries with optional body fat, waist measurements, and notes.
+- Kilograms or pounds, with editing and backdating.
+- Weight charts, seven-day averages, and period statistics.
+- Optional goal weight and BMI reference.
+- Daily reminders at a chosen time.
+- System, light, and dark themes.
+- Full backups, CSV import/export, and DroidWeight import.
 
-- A native Jetpack Compose interface that follows the system theme, with light and muted dark overrides.
-- Daily weight check-ins, backdating, editing, and confirmed deletion.
-- Optional body fat, waist measurements, and notes.
-- Kilograms and pounds, with canonical kilogram storage and reversible conversions.
-- Weight charts for one, three, and six months, or all history.
-- Seven-day averages, period statistics, and optional goals for either gaining or losing weight.
-- An optional BMI reference when height is supplied, without diagnostic labels.
-- Opt-in daily notifications at a chosen local time, rescheduled after reboot.
-- CSV measurement import/export through Android's document picker and migration from DroidWeight exports.
-- Full `.still` backups for phone migration, including all measurements and settings.
-- Android device-to-device setup transfer support, with cloud backup excluded.
-- SQLite persistence, no account, no analytics, no internet permission, no automatic cloud backup.
+Requires **Android 8.0 or later**. Measurements are stored locally in SQLite.
+There are no accounts, ads, analytics, or internet permission.
 
-The app starts empty. It does not insert demonstration measurements or read another
-app's private storage. Entries are deliberately limited to one check-in per calendar
-day. Body fat and waist appear in entry details; the chart plots weight.
+## Using the app
 
-## Build and run
+Record a weight from **Today**, review or edit entries in **History**, and explore
+charts in **Trends**. Each date can have one entry. Body fat, waist measurements,
+and notes appear in entry details; charts show weight.
 
-Requirements: an Android SDK with platform 37 and build tools, a JDK compatible
-with Gradle 9.4.1 (JDK 17 or later), and Android 8.0 / API 26 or later on the device.
-The project uses Android Gradle Plugin 9.2.1 and its built-in Kotlin support.
+In **Settings**, choose your weight unit, set a goal and height, or enable a daily
+reminder. Reminders use the phone's local time, require notification permission,
+and may be delayed by Android's battery restrictions.
 
-Open this folder in Android Studio, or on PowerShell:
+**Settings > Theme** defaults to **System**, which follows the phone's appearance.
+Choose **Light** or **Dark** to keep a fixed theme.
 
-```powershell
-$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
-$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
-.\gradlew.bat :app:assembleDebug :app:testDebugUnitTest
-& "$env:ANDROID_HOME\platform-tools\adb.exe" install -r .\app\build\outputs\apk\debug\app-debug.apk
-& "$env:ANDROID_HOME\platform-tools\adb.exe" shell am start -n app.still/.MainActivity
-```
+## Backups and phone transfer
 
-The Gradle wrapper is included. SDK location can also be set in an untracked
-`local.properties` file. Debug APK: `app\build\outputs\apk\debug\app-debug.apk`.
-Release builds require your own signing configuration before distribution.
+### Full backup
 
-## Appearance
+Use a `.still` backup to save all measurements and settings, including your goal,
+height, theme, and reminders.
 
-**Settings > Theme** offers **System**, **Light**, and **Dark**. New installations
-default to System and follow the phone's appearance, including scheduled changes.
-Explicit Light or Dark selections override the phone's theme. Dialogs, charts,
-cards, and system bars use the same resolved appearance. Dark mode uses muted
-green accents and softer text rather than the light theme's bright lime highlights.
+1. Open **Settings > Back up everything** and save the file.
+2. Copy it to the destination phone and install the same or a newer app version.
+3. Open **Settings > Restore backup**, select the file, and review its contents.
+4. Select **Replace journal** to confirm.
 
-On upgrade, the previous default/light setting becomes System; an existing Dark
-selection stays Dark. The selection is saved locally and included in full backups.
-Restoring an older version-1 backup preserves its original explicit Light or Dark
-appearance; newly created backups can also preserve System.
+**Restoring replaces all existing entries and settings.** Back up the destination
+journal first if you want to keep it. To add measurements without replacing
+existing entries, use CSV import instead.
 
-## Backups and migration
+**Backup files are not encrypted.** Store them somewhere private. Full backups
+are limited to 16 MiB, both compressed and expanded.
 
-### Android's phone-to-phone setup transfer
+### Android setup transfer
 
-Still 1.2.0 participates in supported Android device-to-device setup transfers on
-Android 9 and later. Update Still on the old phone before starting the transfer.
-Android copies the app's private journal database and settings directly; it does
-not consume a manually exported `.still` file. The database includes all check-ins,
-notes, preferences, and reminder settings. The legacy reminder preference file is
-also included so an update transferred before its first launch can migrate safely.
+On supported Android 9+ devices, phone-to-phone setup can transfer the journal
+and settings directly. It does not require an exported `.still` file. Availability
+depends on the devices, setup tool, and app installation/signing eligibility.
+Android 8/8.1 requires a manual backup.
 
-Cloud backup remains excluded. This is a one-time transfer, not ongoing sync or a
-remote recovery service. Actual transfer availability depends on the devices,
-Android setup tool, app installation eligibility, and matching app signing keys.
-Open Still after transfer to check your history and reschedule reminders. Do not
-wipe the old phone until the journal is verified. Keep a manual backup as a fallback.
-Android 8/8.1 must use the manual route below.
+Keep a manual backup as a fallback. After transfer, open the app, verify your
+history, and check notification permissions before wiping the old phone.
 
-### Manual backup and restore
+Cloud backup and ongoing multi-device synchronization are not supported.
 
-1. Update Still on the old phone, then open **Settings > Back up everything**.
-2. Save the `.still` file somewhere private and transfer it to the new phone.
-3. Install Still on the new phone and open **Settings > Restore backup**.
-4. Review the backup date, check-in count, date range, and settings, then select
-   **Replace journal**. Verify your history before wiping the old phone.
+## CSV import and export
 
-A full backup contains every weight, body fat value, waist measurement, note,
-weight unit, goal, height, appearance preference, and reminder time/enabled setting.
-It also works with an empty journal, so preferences can be transferred on their own.
+Open **Settings > Data tools** to import or export measurements. CSV contains
+measurements and notes, not app settings. Imports add missing dates and skip
+dates already in the journal.
 
-**Restore replaces all existing entries and settings on the destination phone.**
-It does not merge; create a backup of the destination first if you want to keep
-its journal. An empty backup explicitly clears the destination journal after confirmation.
-The whole archive is parsed and validated before confirmation. Database replacement
-is transactional, so an invalid backup or database write failure cannot leave a
-half-restored journal. CSV import below remains the non-overwriting merge option.
-
-**Full backups are not encrypted.** Anyone with the file can read the measurements
-and notes. Choose a private destination and remove unneeded copies after transferring.
-There is no account, automatic upload, scheduled backup, or multi-device synchronization.
-Automatic Android cloud backup is excluded; device-to-device setup transfer is
-handled separately as described above. Existing version-1 `.still` files remain compatible.
-
-Reminder times are interpreted in the new phone's local timezone. Android notification
-permission is not transferable: if notifications are blocked, the saved reminder
-preference is retained but delivery is paused until permission is granted. The app
-reschedules on its next foreground resume, after a successful restore, and after reboot.
-
-The portable `.still` file is a ZIP containing `manifest.properties` and `entries.csv`.
-Manifest format `app.still.backup`, version `2`, records an ISO-8601 creation instant,
-entry count, and every setting, including `theme_mode` (`SYSTEM`, `LIGHT`, or `DARK`).
-Version-1 archives with the former `dark_mode` Boolean remain readable. Update the
-destination app to version 1.3.0 or later to restore a version-2 backup.
-Measurements use the canonical metric CSV below;
-device-local row IDs are intentionally regenerated. Unknown versions, missing settings,
-duplicate dates, corrupt measurements, and archives larger than 16 MiB compressed or
-expanded are rejected. Archive contents are never extracted to filesystem paths.
-Create a new backup after making changes; an older file is only a snapshot.
-
-### CSV interchange and DroidWeight migration
-
-Expand **Settings > Data tools > Export measurements (CSV)** to select a destination. CSV files are plain
-text and contain personal measurements and notes; choose a private location.
-CSV is an interchange format, not a complete app backup. Use **Back up everything**
-before uninstalling or when you want a manual phone-migration fallback.
-Goal, height, and appearance preferences are not part of the measurement CSV.
-Reminder preferences are not included either. Reminders are inexact, respect
-Android notification permissions, and may be delayed by battery restrictions.
-
-Still's canonical CSV uses this header and metric storage regardless of display unit:
+Exports use metric units regardless of the display setting:
 
 ```csv
 date,weight_kg,body_fat_percent,waist_cm,note
 2026-01-15,72.4,21.5,81.2,"Morning, after a walk"
 ```
 
-Quoted commas, quotation marks, and multiline notes are supported.
-**Settings > Data tools > Import measurements (CSV)** parses the entire file before requesting confirmation.
-Imports are transactional and do not overwrite existing dates.
+Quoted commas, quotation marks, and multiline notes are supported. Import files
+are limited to 10 MB. CSV files are unencrypted.
 
-Original DroidWeight `data.csv` exports with the pipe-separated header
-`value|type|date|metric|id|comment` are also supported. Measurements are grouped
-by calendar date; if there are multiple weight measurements on one day, the last
-weight row in the file wins. Legacy imperial values are converted using
-DroidWeight's original factors (2.2 pounds/kg and 0.39 inches/cm) to recover the
-stored metric measurements. Legacy times cannot be preserved in a daily journal.
-Separate legacy height records are not imported as check-ins; set your height in
-**Goal & height**. A date containing body fat or waist without a weight is rejected
-instead of silently losing those measurements.
+### Importing from DroidWeight
 
-Malformed files, invalid numbers, future dates, and conflicting edited dates produce
-visible errors. Imports are limited to 10 MB of text.
+Choose a DroidWeight `data.csv` export through **Import measurements (CSV)**.
+The supported pipe-separated header is:
 
-## Structure
+```text
+value|type|date|metric|id|comment
+```
 
-- `data`: SQLite repository, unit conversions, validation, statistics, CSV codec.
-- `BackupCodec`: bounded, versioned full-backup reader/writer using the CSV codec.
-- `TrackerViewModel`: serialized asynchronous persistence and import/export operations.
-- `ui`: Compose screens, editors, theme, and an accessible time-scaled chart.
-- `src/test`: pure domain and CSV regression tests.
-- `src/androidTest`: isolated SQLite persistence tests and Compose interaction tests.
+Measurements are grouped by date; when a date has multiple weights, the last
+weight row in the file is used. Times are not retained. Height records are not
+imported; enter your height in **Settings > Goal & height**. A date with body fat
+or waist measurements but no weight must be corrected before importing.
 
-Run `.\gradlew.bat :app:connectedDebugAndroidTest` with an unlocked device for
-the instrumented suite. Its databases are individually namespaced and removed
-after each test; UI tests render in-memory sample states, not the user's journal.
-The test runner is configured to leave the app installed, preserving its data.
-Android Studio previews include empty, populated, dark, and large-text layouts.
+## Build and run
 
-Database schema 3 adds the three-way theme preference. Upgrades from schema 1 or 2
-preserve measurements, reminder settings, and other preferences. Schema 1 also
-copies legacy reminder SharedPreferences into SQLite, retaining transactional
-restoration of entries and all settings.
-Regression tests cover full backup round trips, malformed archives, migration,
-two-store transfer, empty restoration, injected transaction failures, and confirmation.
+### Requirements
 
-System transfer policy is defined in `res/xml/data_extraction_rules.xml` for
-Android 12+ and `res/xml-v28/backup_rules.xml` for Android 9-11. Both allow only
-`still.db` and the legacy `reminder.xml`; Android handles associated database journals.
-The base `res/xml/backup_rules.xml` excludes all data on Android 8/8.1, which cannot
-enforce the device-transfer-only condition. Cloud exclusions cover credential- and
-device-protected storage. Policy regression tests check the manifest and all rule
-variants; these do not replace a real setup transfer between two devices.
+- Android SDK platform 37 and build tools.
+- A JDK compatible with the bundled Gradle wrapper.
+- An Android 8.0+ device or emulator.
 
-No subscription or remote infrastructure is needed. Bluetooth scales and
-Health Connect integration are not included in this version.
+Open the project in Android Studio, or build from PowerShell using Android
+Studio's bundled JDK:
+
+```powershell
+$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+.\gradlew.bat :app:assembleDebug
+```
+
+The SDK path can also be configured in an untracked `local.properties` file.
+The debug APK is written to `app\build\outputs\apk\debug\app-debug.apk`.
+
+To install and launch it on a connected device with USB debugging enabled:
+
+```powershell
+& "$env:ANDROID_HOME\platform-tools\adb.exe" install -r .\app\build\outputs\apk\debug\app-debug.apk
+& "$env:ANDROID_HOME\platform-tools\adb.exe" shell am start -n app.still/.MainActivity
+```
+
+Release builds require a signing configuration before distribution.
+
+## Development
+
+### Tests
+
+```powershell
+.\gradlew.bat :app:testDebugUnitTest :app:lintDebug
+.\gradlew.bat :app:connectedDebugAndroidTest
+```
+
+Instrumented tests require an unlocked device or emulator. They use isolated
+databases and in-memory UI states rather than the user's journal, and leave the
+app installed after the run.
+
+### Project structure
+
+Application sources are under `app\src\main\java\app\still`.
+
+| Component | Purpose |
+| --- | --- |
+| `data` | Models, SQLite storage, statistics, CSV and backup codecs |
+| `TrackerViewModel` | Application state and persistence operations |
+| `ui` | Compose screens, editors, charts, and themes |
+| `app\src\test` | Unit tests |
+| `app\src\androidTest` | Database and UI integration tests |
