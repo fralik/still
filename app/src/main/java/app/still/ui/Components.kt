@@ -110,9 +110,11 @@ fun EntryRow(entry: Entry, previous: Entry?, unit: WeightUnit, onClick: () -> Un
             Text(dateLabel(entry.date), style = MaterialTheme.typography.titleSmall)
             val detail = entry.note.ifBlank {
                 listOfNotNull(entry.bodyFat?.let { "${number(it)}% body fat" }, entry.waistCm?.let { "${number(it)} cm waist" })
-                    .joinToString(" / ").ifBlank { "A moment for yourself" }
+                    .joinToString(" / ")
             }
-            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            if (detail.isNotBlank()) {
+                Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            }
         }
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("${number(unit.fromKg(entry.weightKg))} ${unit.symbol}", style = MaterialTheme.typography.titleMedium)
@@ -155,7 +157,7 @@ fun WeightChart(entries: List<Entry>, unit: WeightUnit, days: Int, height: Int =
         Column(Modifier.fillMaxWidth().height(height.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             IconBadge(Icons.AutoMirrored.Outlined.ShowChart)
             Spacer(Modifier.height(12.dp))
-            Text(if (entries.isEmpty()) "Your story starts with one entry" else "No check-ins in this period", style = MaterialTheme.typography.titleSmall)
+            Text(if (entries.isEmpty()) "No entries yet" else "No check-ins in this period", style = MaterialTheme.typography.titleSmall)
             Spacer(Modifier.height(6.dp))
             Text(if (entries.isEmpty()) "Log a weight to begin your chart." else "Try a wider date range.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

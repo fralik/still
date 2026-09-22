@@ -3,6 +3,11 @@
 A small, local-first Android weight journal, inspired by DroidWeight's simplicity.
 This is a new implementation, not a modification of the original app.
 
+The header retains the lowercase `still` wordmark. Interface copy uses direct
+labels rather than the app name in sentences; repeated privacy badges and
+motivational taglines are omitted. Backup, restore, and permission warnings remain
+visible where they affect an action.
+
 ## What's here
 
 - A calm, native Jetpack Compose interface with light and dark appearances.

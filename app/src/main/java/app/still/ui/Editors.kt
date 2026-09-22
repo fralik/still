@@ -90,11 +90,6 @@ fun EntryEditor(
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     EditorFrame(if (entry == null) "New check-in" else "Edit check-in", busy, onClose) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Eyebrow("A MOMENT FOR YOURSELF")
-            Text("How are you today?", style = MaterialTheme.typography.headlineLarge)
-            Text("Log the number. Leave the judgment.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
         OutlinedTextField(
             value = weight, onValueChange = { weight = it; error = null },
             label = { Text("Weight (${unit.symbol})") },
@@ -123,7 +118,7 @@ fun EntryEditor(
             Text("Change")
         }
         Text("One check-in per day. You can edit earlier dates in History.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Eyebrow("A LITTLE CONTEXT / OPTIONAL")
+        Eyebrow("OPTIONAL DETAILS")
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(
                 value = fat, onValueChange = { fat = it; error = null }, label = { Text("Body fat (%)") },
@@ -141,7 +136,7 @@ fun EntryEditor(
                 note = it
                 error = if (it.length > 2000) "Notes can contain at most 2000 characters." else null
             },
-            label = { Text("A note to yourself") },
+            label = { Text("Note") },
             placeholder = { Text("Morning check-in, after a walk...") },
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             modifier = Modifier.fillMaxWidth(), minLines = 3, maxLines = 6, enabled = !busy,
@@ -199,7 +194,6 @@ fun PreferencesEditor(preferences: Preferences, busy: Boolean, onClose: () -> Un
     var height by rememberSaveable { mutableStateOf(initialHeight) }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
     EditorFrame("Goal & height", busy, onClose) {
-        Text("A direction, if you want one.", style = MaterialTheme.typography.headlineLarge)
         Text("Both fields are optional. Clear a value to remove it.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedTextField(
             value = goal, onValueChange = { goal = it; error = null }, label = { Text("Goal weight (${preferences.unit.symbol})") },
@@ -210,7 +204,7 @@ fun PreferencesEditor(preferences: Preferences, busy: Boolean, onClose: () -> Un
             value = height, onValueChange = { height = it; error = null }, label = { Text("Height (cm)") },
             modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !busy,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            supportingText = { Text("Used only to calculate an optional BMI reference.") },
+            supportingText = { Text("Used to calculate BMI.") },
         )
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         Button(

@@ -53,7 +53,7 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
         } catch (error: RuntimeException) {
             Log.e("Still", "Could not refresh reminder after returning to the app", error)
             mutableState.update {
-                it.copy(error = "Your journal is unchanged, but Android could not update the reminder. Reopen Still to retry.")
+                it.copy(error = "Your journal is unchanged, but Android could not update the reminder. Reopen the app to retry.")
             }
         }
     }
@@ -112,7 +112,7 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
     fun saveReminder(reminder: ReminderSettings) = perform {
         if (reminder.enabled) {
             require(Reminders.allowed(getApplication())) {
-                "Notifications are disabled. Enable Still notifications in Android Settings, then try again."
+                "Notifications are disabled. Allow notifications for this app in Android Settings, then try again."
             }
         }
         withContext(Dispatchers.IO) { store.saveReminder(reminder) }
@@ -133,7 +133,7 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
             }
             snapshot.entries.size
         }
-        mutableState.update { it.copy(message = "Full backup saved: $count check-ins and all settings. Keep the file private.") }
+        mutableState.update { it.copy(message = "Backup saved: $count check-ins and all settings.") }
     }
 
     fun prepareRestore(uri: Uri) = perform {
@@ -168,7 +168,7 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
         } catch (error: RuntimeException) {
-            throw IOException("$completed, but Android could not update the reminder. Reopen Still to retry.", error)
+            throw IOException("$completed, but Android could not update the reminder. Reopen the app to retry.", error)
         }
     }
 

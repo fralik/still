@@ -34,7 +34,9 @@ class ScreenInstrumentedTest {
                 }
             }
         }
-        compose.onNodeWithText("Hello, you.").assertIsDisplayed()
+        compose.onNodeWithText("Overview").assertIsDisplayed()
+        compose.onNodeWithText("No weight recorded").assertIsDisplayed()
+        compose.onNodeWithText("Less pressure. More perspective.").assertDoesNotExist()
         compose.onNodeWithText("Log your weight").performClick()
         compose.runOnIdle { assertTrue(clicked) }
     }
@@ -71,7 +73,7 @@ class ScreenInstrumentedTest {
         compose.onNodeWithText("Weight (kg)").performScrollTo().performTextReplacement("72,4")
         compose.onNodeWithText("Body fat (%)").performTextInput("21.5")
         compose.onNodeWithText("Waist (cm)").performTextInput("81.2")
-        compose.onNodeWithText("A note to yourself").performScrollTo().performTextInput("After a walk")
+        compose.onNodeWithText("Note").performScrollTo().performTextInput("After a walk")
         closeSoftKeyboard()
         compose.waitForIdle()
         compose.onNodeWithText("Save check-in").performScrollTo().performClick()
@@ -215,6 +217,40 @@ class ScreenInstrumentedTest {
         compose.onNodeWithText("Data tools").performClick()
         compose.onNodeWithText("Import measurements (CSV)").performScrollTo().assertIsEnabled()
         compose.onNodeWithText("Export measurements (CSV)").performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test
+    fun settingsUseDirectLabelsAndKeepBackupWarnings() {
+        compose.setContent {
+            StillTheme { SettingsScreen(TrackerState(loading = false), {}, {}, {}, {}) }
+        }
+        compose.onNodeWithText("Settings").assertIsDisplayed()
+        compose.onNodeWithText("Preferences").assertIsDisplayed()
+        compose.onNodeWithText("Dark theme").assertExists()
+        compose.onNodeWithText("Made for you.").assertDoesNotExist()
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Daily reminder"))
+        compose.onNodeWithText("Daily reminder").assertIsDisplayed()
+        compose.onNodeWithText("A gentle nudge").assertDoesNotExist()
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Backup files are not encrypted.", substring = true))
+        compose.onNodeWithText("Backup files are not encrypted.", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Restoring replaces the current journal.", substring = true).assertExists()
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("About"))
+        compose.onNodeWithText("About").assertIsDisplayed()
+        compose.onNodeWithText("Private by design.").assertDoesNotExist()
+        compose.onNodeWithText("Still has no internet permission", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun entryWithoutNotesDoesNotGetFillerText() {
+        compose.setContent {
+            StillTheme {
+                HistoryScreen(TrackerState(listOf(Entry(1, LocalDate.now(), 72.0)), loading = false), {}, {})
+            }
+        }
+        compose.onNodeWithText("History").assertIsDisplayed()
+        compose.onNodeWithText("Today").assertExists()
+        compose.onNodeWithText("A moment for yourself").assertDoesNotExist()
+        compose.onNodeWithText("ONE DAY AT A TIME").assertDoesNotExist()
     }
 
     @Test

@@ -82,7 +82,7 @@ object BackupCodec {
             while (true) {
                 val entry = zip.nextEntry ?: break
                 require(!entry.isDirectory && entry.name in setOf(MANIFEST, ENTRIES)) {
-                    "This is not a supported Still backup. Use Data tools > Import measurements (CSV) for CSV files."
+                    "Unsupported backup file. Use Data tools > Import measurements (CSV) for CSV files."
                 }
                 require(entry.name !in files) { "The backup contains duplicate files." }
                 val content = readBounded(zip, minOf(remaining, if (entry.name == MANIFEST) 16_384 else MAX_BYTES))
@@ -92,7 +92,7 @@ object BackupCodec {
             }
         }
         require(files.keys == setOf(MANIFEST, ENTRIES)) {
-            "The backup is incomplete or is not a Still backup. Choose a .still file."
+            "The backup is incomplete or unsupported. Choose a .still file."
         }
         val properties = object : Properties() {
             override fun put(key: Any, value: Any): Any? {
@@ -101,9 +101,9 @@ object BackupCodec {
             }
         }
         properties.load(StringReader(utf8(files.getValue(MANIFEST))))
-        require(properties.getProperty("format") == "app.still.backup") { "This file is not a Still backup." }
+        require(properties.getProperty("format") == "app.still.backup") { "Unsupported backup format. Choose a .still file." }
         require(properties.getProperty("version") == "1") {
-            "Unsupported backup version. Update Still before restoring this file."
+            "Unsupported backup version. Update the app before restoring this file."
         }
         require(properties.stringPropertyNames() == keys) { "The backup has missing or unrecognized settings." }
         fun field(name: String): String = properties.getProperty(name)

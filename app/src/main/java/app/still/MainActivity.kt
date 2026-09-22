@@ -121,12 +121,6 @@ private fun StillApp(model: TrackerViewModel, state: TrackerState) {
                         Text("still", style = MaterialTheme.typography.headlineMedium)
                     }
                 },
-                actions = {
-                    Row(Modifier.padding(end = 22.dp), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.Lock, null, Modifier.size(11.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Eyebrow("ON DEVICE")
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
@@ -155,7 +149,7 @@ private fun StillApp(model: TrackerViewModel, state: TrackerState) {
                 Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     if (state.error == null) CircularProgressIndicator()
                     else Button(onClick = model::reload, enabled = !state.busy) { Text("Retry loading") }
-                    Text("Opening your journal", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Loading entries...", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
                 screenStates.SaveableStateProvider(tab) {
@@ -196,7 +190,7 @@ private fun StillApp(model: TrackerViewModel, state: TrackerState) {
         AlertDialog(
             onDismissRequest = { if (!state.busy) model.cancelImport() },
             icon = { Icon(Icons.Outlined.FileDownload, null) },
-            title = { Text("Bring your history along?") },
+            title = { Text("Import measurements?") },
             text = { Text("Found ${pending.size} check-ins. New dates will be added; existing dates will be skipped. Your current entries will not be changed.") },
             confirmButton = { TextButton(onClick = model::confirmImport, enabled = !state.busy) { Text("Import") } },
             dismissButton = { TextButton(onClick = model::cancelImport, enabled = !state.busy) { Text("Cancel") } },
@@ -211,7 +205,7 @@ private fun StillApp(model: TrackerViewModel, state: TrackerState) {
     state.error?.let { error ->
         AlertDialog(
             onDismissRequest = model::clearError,
-            title = { Text("Couldn't finish that") },
+            title = { Text("Unable to complete action") },
             text = { Text(error) },
             confirmButton = { TextButton(onClick = model::clearError) { Text("OK") } },
         )

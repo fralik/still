@@ -47,8 +47,7 @@ fun HomeScreen(state: TrackerState, onAdd: () -> Unit, onEdit: (Entry) -> Unit, 
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Eyebrow(LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d")).uppercase())
-                Text(if (latest == null) "A little check-in.\nA clearer picture." else "Your progress,\nat your pace.", style = MaterialTheme.typography.headlineLarge)
-                Text("Less pressure. More perspective.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                Text("Overview", style = MaterialTheme.typography.headlineLarge)
             }
         }
         item {
@@ -57,12 +56,12 @@ fun HomeScreen(state: TrackerState, onAdd: () -> Unit, onEdit: (Entry) -> Unit, 
                 verticalArrangement = Arrangement.spacedBy(15.dp),
             ) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Eyebrow(if (latest == null) "YOUR STARTING POINT" else "LATEST WEIGHT", Color(0xFFD1DEC9))
+                    Eyebrow("LATEST WEIGHT", Color(0xFFD1DEC9))
                     Icon(Icons.Outlined.Spa, null, tint = Lime, modifier = Modifier.size(26.dp))
                 }
                 if (latest == null) {
-                    Text("Hello, you.", color = Color.White, style = MaterialTheme.typography.headlineLarge)
-                    Text("One number doesn't tell the whole story.\nStart yours with a simple check-in.", color = Color(0xFFDFE8D9), style = MaterialTheme.typography.bodyMedium)
+                    Text("No weight recorded", color = Color.White, style = MaterialTheme.typography.headlineLarge)
+                    Text("Log a weight to start tracking.", color = Color(0xFFDFE8D9), style = MaterialTheme.typography.bodyMedium)
                 } else {
                     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                         Text(number(unit.fromKg(latest.weightKg)), color = Color.White, style = MaterialTheme.typography.displayLarge)
@@ -97,13 +96,13 @@ fun HomeScreen(state: TrackerState, onAdd: () -> Unit, onEdit: (Entry) -> Unit, 
                 val week = entries.filter { !it.date.isBefore(LocalDate.now().minusDays(6)) }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     MetricTile("7-day average", Metrics.average(week)?.let { number(unit.fromKg(it)) } ?: "--", "${unit.symbol} / ${week.size} check-ins", Modifier.weight(1f))
-                    MetricTile("Total check-ins", entries.size.toString(), "one day at a time", Modifier.weight(1f))
+                    MetricTile("Total check-ins", entries.size.toString(), "Since ${entries.last().date.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))}", Modifier.weight(1f))
                 }
             }
         }
         item {
             Panel {
-                SectionHeading("The bigger picture")
+                SectionHeading("Weight history")
                 PeriodPicker(period) { period = it }
                 WeightChart(entries, unit, period)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -126,13 +125,6 @@ fun HomeScreen(state: TrackerState, onAdd: () -> Unit, onEdit: (Entry) -> Unit, 
                 }
             }
         }
-        item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Lock, null, Modifier.size(13.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.width(6.dp))
-                Text("Just for you. Stored on your device.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
     }
 }
 
@@ -145,9 +137,9 @@ fun GoalCard(entries: List<Entry>, preferences: Preferences, onGoal: () -> Unit)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             IconBadge(Icons.Outlined.Flag)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(if (goal == null) "Your pace. Your goal." else "A direction, not a deadline", style = MaterialTheme.typography.titleMedium)
+                Text("Goal weight", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    if (goal == null) "Add a target if it feels right for you." else "Target: ${number(preferences.unit.fromKg(goal))} ${preferences.unit.symbol}",
+                    if (goal == null) "No goal set" else "Target: ${number(preferences.unit.fromKg(goal))} ${preferences.unit.symbol}",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -164,7 +156,7 @@ fun GoalCard(entries: List<Entry>, preferences: Preferences, onGoal: () -> Unit)
             )
         }
         TextButton(onClick = onGoal, contentPadding = PaddingValues(0.dp)) {
-            Text(if (goal == null) "Set an optional goal" else "Edit goal")
+            Text(if (goal == null) "Set goal" else "Edit goal")
             Spacer(Modifier.width(8.dp))
             Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(16.dp))
         }
@@ -181,8 +173,7 @@ fun HistoryScreen(state: TrackerState, onEdit: (Entry) -> Unit, onAdd: () -> Uni
     ) {
         item {
             Column(Modifier.padding(bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Eyebrow("ONE DAY AT A TIME")
-                Text("Your check-ins", style = MaterialTheme.typography.headlineLarge)
+                Text("History", style = MaterialTheme.typography.headlineLarge)
                 Text("${entries.size} ${if (entries.size == 1) "entry" else "entries"} / Tap any check-in to edit", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
             }
         }
@@ -190,8 +181,8 @@ fun HistoryScreen(state: TrackerState, onEdit: (Entry) -> Unit, onAdd: () -> Uni
             item {
                 Panel {
                     IconBadge(Icons.Outlined.CalendarToday)
-                    Text("A fresh page", style = MaterialTheme.typography.headlineMedium)
-                    Text("Your check-ins will live here, along with the little notes that put them in context.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("No entries yet", style = MaterialTheme.typography.headlineMedium)
+                    Text("Saved weights and notes appear here.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Button(onClick = onAdd, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) { Text("Add your first check-in") }
                 }
             }
@@ -222,11 +213,7 @@ fun TrendsScreen(state: TrackerState, onGoal: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Eyebrow("ZOOM OUT A LITTLE")
-                Text("Patterns, not pressure.", style = MaterialTheme.typography.headlineLarge)
-                Text("A longer view of your recorded weight.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-            }
+            Text("Trends", style = MaterialTheme.typography.headlineLarge)
         }
         item {
             Panel {
@@ -298,15 +285,11 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Eyebrow("MAKE YOURSELF AT HOME")
-                Text("Made for you.", style = MaterialTheme.typography.headlineLarge)
-                Text("A few preferences. Nothing complicated.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-            }
+            Text("Settings", style = MaterialTheme.typography.headlineLarge)
         }
         item {
             Panel {
-                Text("The essentials", style = MaterialTheme.typography.titleLarge)
+                Text("Preferences", style = MaterialTheme.typography.titleLarge)
                 Text("Weight unit", style = MaterialTheme.typography.titleSmall)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     WeightUnit.entries.forEach { unit ->
@@ -319,7 +302,7 @@ fun SettingsScreen(
                         )
                     }
                 }
-                Text("Your entries are converted, never reinterpreted. Waist and height use centimeters.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                Text("Height and waist use centimeters.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 TextButton(onClick = onGoal, enabled = !state.busy, contentPadding = PaddingValues(0.dp)) {
                     Icon(Icons.Outlined.Tune, null, Modifier.size(21.dp))
@@ -329,10 +312,7 @@ fun SettingsScreen(
                     Icon(Icons.Outlined.ChevronRight, null)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Dark appearance", style = MaterialTheme.typography.titleSmall)
-                        Text("A softer glow for evening check-ins", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                    Text("Dark theme", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                     Switch(checked = preferences.darkMode, enabled = !state.busy, onCheckedChange = { onPreferences(preferences.copy(darkMode = it)) })
                 }
             }
@@ -340,10 +320,7 @@ fun SettingsScreen(
         item {
             Panel {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text("A gentle nudge", style = MaterialTheme.typography.titleLarge)
-                        Text("An optional daily reminder", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                    Text("Daily reminder", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                     Switch(
                         checked = state.reminder.enabled, enabled = !state.busy,
                         onCheckedChange = { onReminder(state.reminder.copy(enabled = it)) },
@@ -362,22 +339,23 @@ fun SettingsScreen(
                     Spacer(Modifier.width(9.dp))
                     Text("Around ${java.time.LocalTime.of(state.reminder.hour, state.reminder.minute).format(DateTimeFormatter.ofPattern("HH:mm"))}")
                 }
-                Text(
-                    if (state.reminder.enabled && !notificationsAllowed) "Notifications are blocked in Android Settings. Turn them on there to receive reminders."
-                    else "Off by default. Delivery may be delayed by Android's battery settings.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall,
-                )
+                if (state.reminder.enabled) {
+                    Text(
+                        if (!notificationsAllowed) "Allow notifications in Android Settings to receive reminders."
+                        else "Battery settings may delay delivery.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall,
+                    )
+                }
             }
         }
         item {
             Panel {
                 Text("Backup & transfer", style = MaterialTheme.typography.titleLarge)
                 Text(
-                    if (android.os.Build.VERSION.SDK_INT >= 28) "Still supports Android's phone-to-phone setup transfer for your journal and settings. Availability depends on the phones and transfer tool. Cloud backup stays off."
-                    else "On Android 8, use a manual backup to move your journal and settings to a new phone. Cloud backup stays off.",
+                    if (android.os.Build.VERSION.SDK_INT >= 28) "Entries and settings can transfer during Android phone setup, where supported."
+                    else "On Android 8, use a backup file to move entries and settings to a new phone.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium,
                 )
-                Text("For a backup you control, save everything to a .still file.", style = MaterialTheme.typography.bodyMedium)
                 Button(onClick = onBackup, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
                     Icon(Icons.Outlined.FileUpload, null, Modifier.size(19.dp))
                     Spacer(Modifier.width(9.dp))
@@ -388,8 +366,8 @@ fun SettingsScreen(
                     Spacer(Modifier.width(9.dp))
                     Text("Restore backup")
                 }
-                Text("Transfer the .still file to your new phone, then restore it here. You'll review the backup before it replaces this device's journal and settings.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Manual backup files are not encrypted. Keep them private. There is no scheduled backup or ongoing synchronization.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Full backups (.still) include entries and settings. Restoring replaces the current journal.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Backup files are not encrypted. No automatic cloud backup or sync.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         item {
@@ -405,9 +383,9 @@ fun SettingsScreen(
                     Spacer(Modifier.weight(1f))
                     Icon(if (dataToolsExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, null)
                 }
-                Text("For spreadsheets and moving measurements between apps.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                Text("CSV import and export", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 if (dataToolsExpanded) {
-                    Text("CSV includes measurements and notes only, not settings. Import adds missing dates without replacing existing entries.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                    Text("Measurements and notes only. Import adds missing dates without overwriting entries.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                     OutlinedButton(onClick = onImport, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
                         Icon(Icons.Outlined.FileDownload, null, Modifier.size(19.dp))
                         Spacer(Modifier.width(9.dp))
@@ -418,18 +396,15 @@ fun SettingsScreen(
                         Spacer(Modifier.width(9.dp))
                         Text("Export measurements (CSV)")
                     }
-                    Text("Accepts Still CSV files and original DroidWeight exports. For a complete backup, use Back up everything.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("DroidWeight CSV imports are also supported.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
         item {
             Panel {
-                IconBadge(Icons.Outlined.Lock)
-                Text("Private by design.", style = MaterialTheme.typography.titleLarge)
-                Text("No account. No ads. No analytics. Still has no internet permission, and automatic cloud backups are disabled.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Text("STILL / 1.2.0", style = MaterialTheme.typography.labelSmall, letterSpacing = 2.sp)
-                Text("A fresh take on the simplicity of DroidWeight.\nBuilt for a little more perspective.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                Text("About", style = MaterialTheme.typography.titleLarge)
+                Text("Version 1.2.1", style = MaterialTheme.typography.bodyMedium)
+                Text("Inspired by DroidWeight.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             }
         }
     }
