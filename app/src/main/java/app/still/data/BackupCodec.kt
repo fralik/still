@@ -82,7 +82,7 @@ object BackupCodec {
             while (true) {
                 val entry = zip.nextEntry ?: break
                 require(!entry.isDirectory && entry.name in setOf(MANIFEST, ENTRIES)) {
-                    "This is not a supported Still backup. Use Import CSV for CSV files."
+                    "This is not a supported Still backup. Use Data tools > Import measurements (CSV) for CSV files."
                 }
                 require(entry.name !in files) { "The backup contains duplicate files." }
                 val content = readBounded(zip, minOf(remaining, if (entry.name == MANIFEST) 16_384 else MAX_BYTES))

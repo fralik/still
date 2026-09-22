@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <include domain="database" path="still.db" requireFlags="deviceToDeviceTransfer" />
+    <include domain="sharedpref" path="reminder.xml" requireFlags="deviceToDeviceTransfer" />
+</full-backup-content>

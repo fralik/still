@@ -174,8 +174,47 @@ class ScreenInstrumentedTest {
                 )
             }
         }
-        compose.onNodeWithText("Create full backup").performScrollTo().assertIsEnabled().performClick()
+        compose.onNodeWithText("Back up everything").performScrollTo().assertIsEnabled().performClick()
         compose.runOnIdle { assertTrue(requested) }
+    }
+
+    @Test
+    fun csvActionsAreSecondaryAndStillWorkWhenExpanded() {
+        var imported = false
+        var exported = false
+        compose.setContent {
+            StillTheme {
+                SettingsScreen(
+                    TrackerState(listOf(Entry(1, LocalDate.now(), 72.0)), loading = false),
+                    {}, {}, { imported = true }, { exported = true },
+                )
+            }
+        }
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Data tools"))
+        compose.onNodeWithText("Import measurements (CSV)").assertDoesNotExist()
+        compose.onNodeWithText("Export measurements (CSV)").assertDoesNotExist()
+        compose.onNodeWithText("Data tools").performClick()
+        compose.onNodeWithText("Import measurements (CSV)").performScrollTo().performClick()
+        compose.onNodeWithText("Export measurements (CSV)").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertTrue(imported)
+            assertTrue(exported)
+        }
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Data tools"))
+        compose.onNodeWithText("Data tools").performClick()
+        compose.onNodeWithText("Import measurements (CSV)").assertDoesNotExist()
+        compose.onNodeWithText("Export measurements (CSV)").assertDoesNotExist()
+    }
+
+    @Test
+    fun emptyJournalAllowsCsvImportButNotExport() {
+        compose.setContent {
+            StillTheme { SettingsScreen(TrackerState(loading = false), {}, {}, {}, {}) }
+        }
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Data tools"))
+        compose.onNodeWithText("Data tools").performClick()
+        compose.onNodeWithText("Import measurements (CSV)").performScrollTo().assertIsEnabled()
+        compose.onNodeWithText("Export measurements (CSV)").performScrollTo().assertIsNotEnabled()
     }
 
     @Test

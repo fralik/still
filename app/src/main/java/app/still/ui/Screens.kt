@@ -19,6 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -290,6 +292,7 @@ fun SettingsScreen(
 ) {
     val preferences = state.preferences
     val context = LocalContext.current
+    var dataToolsExpanded by rememberSaveable { mutableStateOf(false) }
     LazyColumn(
         Modifier.fillMaxSize(), contentPadding = PaddingValues(22.dp, 16.dp, 22.dp, 30.dp),
         verticalArrangement = Arrangement.spacedBy(22.dp),
@@ -368,37 +371,55 @@ fun SettingsScreen(
         }
         item {
             Panel {
-                Text("Moving to a new phone?", style = MaterialTheme.typography.titleLarge)
-                Text("A full backup includes every check-in, note, goal, height, unit, appearance, and reminder setting.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                Text("Backup & transfer", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    if (android.os.Build.VERSION.SDK_INT >= 28) "Still supports Android's phone-to-phone setup transfer for your journal and settings. Availability depends on the phones and transfer tool. Cloud backup stays off."
+                    else "On Android 8, use a manual backup to move your journal and settings to a new phone. Cloud backup stays off.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium,
+                )
+                Text("For a backup you control, save everything to a .still file.", style = MaterialTheme.typography.bodyMedium)
                 Button(onClick = onBackup, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
                     Icon(Icons.Outlined.FileUpload, null, Modifier.size(19.dp))
                     Spacer(Modifier.width(9.dp))
-                    Text("Create full backup")
+                    Text("Back up everything")
                 }
                 OutlinedButton(onClick = onRestore, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
                     Icon(Icons.Outlined.FileDownload, null, Modifier.size(19.dp))
                     Spacer(Modifier.width(9.dp))
-                    Text("Restore full backup")
+                    Text("Restore backup")
                 }
                 Text("Transfer the .still file to your new phone, then restore it here. You'll review the backup before it replaces this device's journal and settings.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Backups are not encrypted. Keep the file private. There is no automatic backup or synchronization.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Manual backup files are not encrypted. Keep them private. There is no scheduled backup or ongoing synchronization.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         item {
             Panel {
-                Text("Your data stays yours", style = MaterialTheme.typography.titleLarge)
-                Text("CSV is for measurements and notes only, not settings. Imports add new dates without replacing existing check-ins.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-                OutlinedButton(onClick = onExport, enabled = !state.busy && state.entries.isNotEmpty(), modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
-                    Icon(Icons.Outlined.FileUpload, null, Modifier.size(19.dp))
-                    Spacer(Modifier.width(9.dp))
-                    Text("Export CSV backup")
+                TextButton(
+                    onClick = { dataToolsExpanded = !dataToolsExpanded },
+                    modifier = Modifier.fillMaxWidth().semantics {
+                        stateDescription = if (dataToolsExpanded) "Expanded" else "Collapsed"
+                    },
+                    contentPadding = PaddingValues(vertical = 8.dp),
+                ) {
+                    Text("Data tools", style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.weight(1f))
+                    Icon(if (dataToolsExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, null)
                 }
-                OutlinedButton(onClick = onImport, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
-                    Icon(Icons.Outlined.FileDownload, null, Modifier.size(19.dp))
-                    Spacer(Modifier.width(9.dp))
-                    Text("Import CSV")
+                Text("For spreadsheets and moving measurements between apps.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                if (dataToolsExpanded) {
+                    Text("CSV includes measurements and notes only, not settings. Import adds missing dates without replacing existing entries.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                    OutlinedButton(onClick = onImport, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
+                        Icon(Icons.Outlined.FileDownload, null, Modifier.size(19.dp))
+                        Spacer(Modifier.width(9.dp))
+                        Text("Import measurements (CSV)")
+                    }
+                    OutlinedButton(onClick = onExport, enabled = !state.busy && state.entries.isNotEmpty(), modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
+                        Icon(Icons.Outlined.FileUpload, null, Modifier.size(19.dp))
+                        Spacer(Modifier.width(9.dp))
+                        Text("Export measurements (CSV)")
+                    }
+                    Text("Accepts Still CSV files and original DroidWeight exports. For a complete backup, use Back up everything.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Text("Accepts Still CSV files and original DroidWeight exports. Use full backup above to transfer settings too.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         item {
@@ -407,7 +428,7 @@ fun SettingsScreen(
                 Text("Private by design.", style = MaterialTheme.typography.titleLarge)
                 Text("No account. No ads. No analytics. Still has no internet permission, and automatic cloud backups are disabled.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Text("STILL / 1.1.0", style = MaterialTheme.typography.labelSmall, letterSpacing = 2.sp)
+                Text("STILL / 1.2.0", style = MaterialTheme.typography.labelSmall, letterSpacing = 2.sp)
                 Text("A fresh take on the simplicity of DroidWeight.\nBuilt for a little more perspective.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             }
         }

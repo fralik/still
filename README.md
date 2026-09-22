@@ -13,8 +13,9 @@ This is a new implementation, not a modification of the original app.
 - Seven-day averages, period statistics, and optional goals for either gaining or losing weight.
 - An optional BMI reference when height is supplied, without diagnostic labels.
 - Opt-in daily notifications at a chosen local time, rescheduled after reboot.
-- CSV backups through Android's document picker and migration from DroidWeight exports.
+- CSV measurement import/export through Android's document picker and migration from DroidWeight exports.
 - Full `.still` backups for phone migration, including all measurements and settings.
+- Android device-to-device setup transfer support, with cloud backup excluded.
 - SQLite persistence, no account, no analytics, no internet permission, no automatic cloud backup.
 
 The app starts empty. It does not insert demonstration measurements or read another
@@ -43,11 +44,27 @@ Release builds require your own signing configuration before distribution.
 
 ## Backups and migration
 
-### Moving to a new phone
+### Android's phone-to-phone setup transfer
 
-1. Update Still on the old phone, then open **Settings > Create full backup**.
+Still 1.2.0 participates in supported Android device-to-device setup transfers on
+Android 9 and later. Update Still on the old phone before starting the transfer.
+Android copies the app's private journal database and settings directly; it does
+not consume a manually exported `.still` file. The database includes all check-ins,
+notes, preferences, and reminder settings. The legacy reminder preference file is
+also included so an update transferred before its first launch can migrate safely.
+
+Cloud backup remains excluded. This is a one-time transfer, not ongoing sync or a
+remote recovery service. Actual transfer availability depends on the devices,
+Android setup tool, app installation eligibility, and matching app signing keys.
+Open Still after transfer to check your history and reschedule reminders. Do not
+wipe the old phone until the journal is verified. Keep a manual backup as a fallback.
+Android 8/8.1 must use the manual route below.
+
+### Manual backup and restore
+
+1. Update Still on the old phone, then open **Settings > Back up everything**.
 2. Save the `.still` file somewhere private and transfer it to the new phone.
-3. Install Still 1.1.0 or later on the new phone and open **Settings > Restore full backup**.
+3. Install Still on the new phone and open **Settings > Restore backup**.
 4. Review the backup date, check-in count, date range, and settings, then select
    **Replace journal**. Verify your history before wiping the old phone.
 
@@ -65,7 +82,8 @@ half-restored journal. CSV import below remains the non-overwriting merge option
 **Full backups are not encrypted.** Anyone with the file can read the measurements
 and notes. Choose a private destination and remove unneeded copies after transferring.
 There is no account, automatic upload, scheduled backup, or multi-device synchronization.
-Neither automatic Android cloud backup nor system device transfer is enabled.
+Automatic Android cloud backup is excluded; device-to-device setup transfer is
+handled separately as described above. Existing version-1 `.still` files remain compatible.
 
 Reminder times are interpreted in the new phone's local timezone. Android notification
 permission is not transferable: if notifications are blocked, the saved reminder
@@ -82,9 +100,10 @@ Create a new backup after making changes; an older file is only a snapshot.
 
 ### CSV interchange and DroidWeight migration
 
-Use **Settings > Export CSV backup** to select a destination. Backups are plain
+Expand **Settings > Data tools > Export measurements (CSV)** to select a destination. CSV files are plain
 text and contain personal measurements and notes; choose a private location.
-Automatic Android backup is disabled. Export before uninstalling or changing phones.
+CSV is an interchange format, not a complete app backup. Use **Back up everything**
+before uninstalling or when you want a manual phone-migration fallback.
 Goal, height, and appearance preferences are not part of the measurement CSV.
 Reminder preferences are not included either. Reminders are inexact, respect
 Android notification permissions, and may be delayed by battery restrictions.
@@ -97,7 +116,7 @@ date,weight_kg,body_fat_percent,waist_cm,note
 ```
 
 Quoted commas, quotation marks, and multiline notes are supported.
-**Settings > Import CSV** parses the entire file before requesting confirmation.
+**Settings > Data tools > Import measurements (CSV)** parses the entire file before requesting confirmation.
 Imports are transactional and do not overwrite existing dates.
 
 Original DroidWeight `data.csv` exports with the pipe-separated header
@@ -133,6 +152,14 @@ all settings in one transaction. The schema-1 upgrade copies legacy reminder
 SharedPreferences once without changing existing measurements or preferences.
 Regression tests cover full backup round trips, malformed archives, migration,
 two-store transfer, empty restoration, injected transaction failures, and confirmation.
+
+System transfer policy is defined in `res/xml/data_extraction_rules.xml` for
+Android 12+ and `res/xml-v28/backup_rules.xml` for Android 9-11. Both allow only
+`still.db` and the legacy `reminder.xml`; Android handles associated database journals.
+The base `res/xml/backup_rules.xml` excludes all data on Android 8/8.1, which cannot
+enforce the device-transfer-only condition. Cloud exclusions cover credential- and
+device-protected storage. Policy regression tests check the manifest and all rule
+variants; these do not replace a real setup transfer between two devices.
 
 No subscription or remote infrastructure is needed. Bluetooth scales and
 Health Connect integration are not included in this version.

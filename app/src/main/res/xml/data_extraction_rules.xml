@@ -6,12 +6,14 @@
         <exclude domain="database" path="." />
         <exclude domain="sharedpref" path="." />
         <exclude domain="external" path="." />
+        <exclude domain="device_root" path="." />
+        <exclude domain="device_file" path="." />
+        <exclude domain="device_database" path="." />
+        <exclude domain="device_sharedpref" path="." />
     </cloud-backup>
     <device-transfer>
-        <exclude domain="root" path="." />
-        <exclude domain="file" path="." />
-        <exclude domain="database" path="." />
-        <exclude domain="sharedpref" path="." />
-        <exclude domain="external" path="." />
+        <include domain="database" path="still.db" />
+        <!-- Preserve pre-migration reminders if the updated app has not been opened yet. -->
+        <include domain="sharedpref" path="reminder.xml" />
     </device-transfer>
 </data-extraction-rules>
