@@ -2,7 +2,9 @@ package app.still
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
@@ -10,9 +12,10 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.platform.app.InstrumentationRegistry
 import app.still.data.Entry
 import app.still.data.Preferences
@@ -51,11 +54,13 @@ class StoreListingInstrumentedTest {
         var screen by mutableIntStateOf(0)
         compose.setContent {
             StillTheme(dark = screen == 3) {
-                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    when (screen) {
-                        1 -> TrendsScreen(state) {}
-                        2 -> HistoryScreen(state, {}, {})
-                        else -> HomeScreen(state, {}, {}, {}, {})
+                Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+                    Surface(Modifier.fillMaxSize().testTag("store-screen"), color = MaterialTheme.colorScheme.background) {
+                        when (screen) {
+                            1 -> TrendsScreen(state) {}
+                            2 -> HistoryScreen(state, {}, {})
+                            else -> HomeScreen(state, {}, {}, {}, {})
+                        }
                     }
                 }
             }
@@ -63,7 +68,7 @@ class StoreListingInstrumentedTest {
         repeat(4) { index ->
             compose.runOnIdle { screen = index }
             compose.waitForIdle()
-            save(compose.onRoot().captureToImage().asAndroidBitmap(), File(output, "${index + 1}.png"))
+            save(compose.onNodeWithTag("store-screen").captureToImage().asAndroidBitmap(), File(output, "${index + 1}.png"))
         }
         val icon = Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888)
         checkNotNull(context.getDrawable(R.drawable.ic_launcher)).apply {
