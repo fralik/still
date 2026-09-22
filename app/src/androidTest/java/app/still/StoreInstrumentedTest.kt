@@ -12,6 +12,7 @@ import app.still.data.Entry
 import app.still.data.Preferences
 import app.still.data.TrackerStore
 import app.still.data.WeightUnit
+import app.still.data.ThemeMode
 import app.still.data.BackupCodec
 import app.still.data.FullBackup
 import org.junit.After
@@ -47,12 +48,12 @@ class StoreInstrumentedTest {
         val saved = store.entries().single()
         assertTrue(saved.id > 0)
         store.saveEntry(saved.copy(weightKg = 72.1, note = "Edited"))
-        store.savePreferences(Preferences(WeightUnit.LB, 70.0, 175.0, true))
+        store.savePreferences(Preferences(WeightUnit.LB, 70.0, 175.0, ThemeMode.DARK))
         store.close()
         store = TrackerStore(context)
         assertEquals(72.1, store.entries().single().weightKg, 0.00001)
         assertEquals("Edited", store.entries().single().note)
-        assertEquals(Preferences(WeightUnit.LB, 70.0, 175.0, true), store.preferences())
+        assertEquals(Preferences(WeightUnit.LB, 70.0, 175.0, ThemeMode.DARK), store.preferences())
         store.deleteEntry(saved.id)
         assertTrue(store.entries().isEmpty())
     }
@@ -96,7 +97,7 @@ class StoreInstrumentedTest {
     @Test
     fun fullBackupMovesEverySettingAndEntryToAnotherStore() {
         store.saveEntry(Entry(date = LocalDate.now(), weightKg = 72.123456, bodyFat = 21.5, waistCm = 81.2, note = "First\nsecond"))
-        store.savePreferences(Preferences(WeightUnit.LB, 70.0, 175.0, true))
+        store.savePreferences(Preferences(WeightUnit.LB, 70.0, 175.0, ThemeMode.DARK))
         store.saveReminder(ReminderSettings(true, 19, 35))
         val original = store.fullBackup()
         val backup = BackupCodec.decode(BackupCodec.encode(original).inputStream())
@@ -121,7 +122,7 @@ class StoreInstrumentedTest {
     @Test
     fun fullBackupRoundTripsThroughContentResolverStreams() {
         store.saveEntry(Entry(date = LocalDate.of(2020, 1, 2), weightKg = 72.5, note = "Exported note"))
-        store.savePreferences(Preferences(WeightUnit.LB, 70.0, 175.0, true))
+        store.savePreferences(Preferences(WeightUnit.LB, 70.0, 175.0, ThemeMode.DARK))
         store.saveReminder(ReminderSettings(true, 20, 45))
         val snapshot = store.fullBackup()
         val file = File.createTempFile("still-backup-test-", ".still", context.cacheDir)
@@ -139,7 +140,7 @@ class StoreInstrumentedTest {
     @Test
     fun emptyBackupExplicitlyClearsJournalAndResetsAllSettings() {
         store.saveEntry(Entry(date = LocalDate.now(), weightKg = 72.0))
-        store.savePreferences(Preferences(WeightUnit.LB, 70.0, 175.0, true))
+        store.savePreferences(Preferences(WeightUnit.LB, 70.0, 175.0, ThemeMode.DARK))
         store.saveReminder(ReminderSettings(true, 19, 35))
         store.restoreBackup(FullBackup(emptyList(), Preferences(), ReminderSettings()))
         assertTrue(store.entries().isEmpty())
@@ -167,7 +168,7 @@ class StoreInstrumentedTest {
         val original = store.fullBackup()
         val replacement = FullBackup(
             listOf(Entry(date = LocalDate.now().minusDays(1), weightKg = 90.0)),
-            Preferences(WeightUnit.LB, 70.0, 175.0, true),
+            Preferences(WeightUnit.LB, 70.0, 175.0, ThemeMode.DARK),
             ReminderSettings(true, 17, 30),
         )
         store.writableDatabase.execSQL(
@@ -181,26 +182,75 @@ class StoreInstrumentedTest {
 
     @Test
     fun upgradesVersionOneWithoutLosingLegacyEntriesOrReminderSettings() {
-        store.close()
-        context.openOrCreateDatabase("still.db", Context.MODE_PRIVATE, null).use { db ->
-            db.execSQL("CREATE TABLE entries (id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL UNIQUE, weight_kg REAL NOT NULL, body_fat REAL, waist_cm REAL, note TEXT NOT NULL)")
-            db.execSQL("CREATE TABLE preferences (id INTEGER PRIMARY KEY CHECK (id = 1), unit TEXT NOT NULL, goal_kg REAL, height_cm REAL, dark_mode INTEGER NOT NULL)")
-            db.execSQL("INSERT INTO entries VALUES (42, '2020-01-02', 72.4, 21.5, 81.2, 'Existing journal')")
-            db.execSQL("INSERT INTO preferences VALUES (1, 'LB', 70.0, 175.0, 1)")
-            db.version = 1
-        }
+        createLegacyDatabase(1, true)
         assertTrue(context.getSharedPreferences("reminder", Context.MODE_PRIVATE).edit()
             .putBoolean("enabled", true).putInt("hour", 22).putInt("minute", 45).commit())
         store = TrackerStore(context)
         assertEquals("Existing journal", store.entries().single().note)
         assertEquals(42L, store.entries().single().id)
-        assertEquals(Preferences(WeightUnit.LB, 70.0, 175.0, true), store.preferences())
+        assertEquals(Preferences(WeightUnit.LB, 70.0, 175.0, ThemeMode.DARK), store.preferences())
         assertEquals(ReminderSettings(true, 22, 45), store.reminder())
         store.saveReminder(ReminderSettings(false, 7, 15))
         store.close()
         store = TrackerStore(context)
         assertEquals(ReminderSettings(false, 7, 15), store.reminder())
-        assertEquals(2, store.readableDatabase.version)
+        assertEquals(3, store.readableDatabase.version)
+    }
+
+    @Test
+    fun versionTwoDefaultBecomesSystemWithoutChangingOtherSettings() {
+        createLegacyDatabase(2, false)
+        store = TrackerStore(context)
+        assertEquals(Preferences(WeightUnit.LB, 70.0, 175.0, ThemeMode.SYSTEM), store.preferences())
+        assertEquals(ReminderSettings(true, 22, 45), store.reminder())
+        assertEquals("Existing journal", store.entries().single().note)
+        assertEquals(3, store.readableDatabase.version)
+    }
+
+    @Test
+    fun versionTwoExplicitDarkSelectionIsPreserved() {
+        createLegacyDatabase(2, true)
+        store = TrackerStore(context)
+        assertEquals(ThemeMode.DARK, store.preferences().themeMode)
+        assertEquals(ReminderSettings(true, 22, 45), store.reminder())
+    }
+
+    @Test
+    fun versionOneDefaultCanUpgradeDirectlyToSystemTheme() {
+        createLegacyDatabase(1, false)
+        store = TrackerStore(context)
+        assertEquals(ThemeMode.SYSTEM, store.preferences().themeMode)
+        assertEquals(ReminderSettings(), store.reminder())
+    }
+
+    @Test
+    fun themeDefaultsToSystemAndAllOverridesSurviveReopeningAndRestoration() {
+        assertEquals(ThemeMode.SYSTEM, store.preferences().themeMode)
+        for (mode in ThemeMode.entries) {
+            store.savePreferences(Preferences(themeMode = mode))
+            val snapshot = store.fullBackup()
+            store.close()
+            store = TrackerStore(context)
+            assertEquals(mode, store.preferences().themeMode)
+            store.savePreferences(Preferences())
+            store.restoreBackup(snapshot)
+            assertEquals(mode, store.preferences().themeMode)
+        }
+    }
+
+    private fun createLegacyDatabase(version: Int, dark: Boolean) {
+        store.close()
+        context.openOrCreateDatabase("still.db", Context.MODE_PRIVATE, null).use { db ->
+            db.execSQL("CREATE TABLE entries (id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL UNIQUE, weight_kg REAL NOT NULL, body_fat REAL, waist_cm REAL, note TEXT NOT NULL)")
+            db.execSQL("CREATE TABLE preferences (id INTEGER PRIMARY KEY CHECK (id = 1), unit TEXT NOT NULL, goal_kg REAL, height_cm REAL, dark_mode INTEGER NOT NULL)")
+            db.execSQL("INSERT INTO entries VALUES (42, '2020-01-02', 72.4, 21.5, 81.2, 'Existing journal')")
+            db.execSQL("INSERT INTO preferences VALUES (1, 'LB', 70.0, 175.0, ?)", arrayOf(if (dark) 1 else 0))
+            if (version == 2) {
+                db.execSQL("CREATE TABLE reminder (id INTEGER PRIMARY KEY CHECK (id = 1), enabled INTEGER NOT NULL, hour INTEGER NOT NULL, minute INTEGER NOT NULL)")
+                db.execSQL("INSERT INTO reminder VALUES (1, 1, 22, 45)")
+            }
+            db.version = version
+        }
     }
 }
 

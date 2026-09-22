@@ -24,9 +24,21 @@ data class Entry(
     val note: String = "",
 )
 
+enum class ThemeMode(val label: String) {
+    SYSTEM("System"),
+    LIGHT("Light"),
+    DARK("Dark");
+
+    fun isDark(systemDark: Boolean): Boolean = when (this) {
+        SYSTEM -> systemDark
+        LIGHT -> false
+        DARK -> true
+    }
+}
+
 data class Preferences(
     val unit: WeightUnit = WeightUnit.KG,
     val goalKg: Double? = null,
     val heightCm: Double? = null,
-    val darkMode: Boolean = false,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
 )

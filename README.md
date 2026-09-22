@@ -10,7 +10,7 @@ visible where they affect an action.
 
 ## What's here
 
-- A calm, native Jetpack Compose interface with light and dark appearances.
+- A native Jetpack Compose interface that follows the system theme, with light and muted dark overrides.
 - Daily weight check-ins, backdating, editing, and confirmed deletion.
 - Optional body fat, waist measurements, and notes.
 - Kilograms and pounds, with canonical kilogram storage and reversible conversions.
@@ -46,6 +46,19 @@ $env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
 The Gradle wrapper is included. SDK location can also be set in an untracked
 `local.properties` file. Debug APK: `app\build\outputs\apk\debug\app-debug.apk`.
 Release builds require your own signing configuration before distribution.
+
+## Appearance
+
+**Settings > Theme** offers **System**, **Light**, and **Dark**. New installations
+default to System and follow the phone's appearance, including scheduled changes.
+Explicit Light or Dark selections override the phone's theme. Dialogs, charts,
+cards, and system bars use the same resolved appearance. Dark mode uses muted
+green accents and softer text rather than the light theme's bright lime highlights.
+
+On upgrade, the previous default/light setting becomes System; an existing Dark
+selection stays Dark. The selection is saved locally and included in full backups.
+Restoring an older version-1 backup preserves its original explicit Light or Dark
+appearance; newly created backups can also preserve System.
 
 ## Backups and migration
 
@@ -96,8 +109,11 @@ preference is retained but delivery is paused until permission is granted. The a
 reschedules on its next foreground resume, after a successful restore, and after reboot.
 
 The portable `.still` file is a ZIP containing `manifest.properties` and `entries.csv`.
-Manifest format `app.still.backup`, version `1`, records an ISO-8601 creation instant,
-entry count, and every setting. Measurements use the canonical metric CSV below;
+Manifest format `app.still.backup`, version `2`, records an ISO-8601 creation instant,
+entry count, and every setting, including `theme_mode` (`SYSTEM`, `LIGHT`, or `DARK`).
+Version-1 archives with the former `dark_mode` Boolean remain readable. Update the
+destination app to version 1.3.0 or later to restore a version-2 backup.
+Measurements use the canonical metric CSV below;
 device-local row IDs are intentionally regenerated. Unknown versions, missing settings,
 duplicate dates, corrupt measurements, and archives larger than 16 MiB compressed or
 expanded are rejected. Archive contents are never extracted to filesystem paths.
@@ -152,9 +168,10 @@ after each test; UI tests render in-memory sample states, not the user's journal
 The test runner is configured to leave the app installed, preserving its data.
 Android Studio previews include empty, populated, dark, and large-text layouts.
 
-Database schema 2 moves reminder settings into SQLite so restore covers entries and
-all settings in one transaction. The schema-1 upgrade copies legacy reminder
-SharedPreferences once without changing existing measurements or preferences.
+Database schema 3 adds the three-way theme preference. Upgrades from schema 1 or 2
+preserve measurements, reminder settings, and other preferences. Schema 1 also
+copies legacy reminder SharedPreferences into SQLite, retaining transactional
+restoration of entries and all settings.
 Regression tests cover full backup round trips, malformed archives, migration,
 two-store transfer, empty restoration, injected transaction failures, and confirmation.
 

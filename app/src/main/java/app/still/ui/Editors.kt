@@ -13,7 +13,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -88,7 +87,7 @@ fun EntryEditor(
     var note by rememberSaveable { mutableStateOf(entry?.note.orEmpty()) }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
-    val context = LocalContext.current
+    val context = rememberDialogContext()
     EditorFrame(if (entry == null) "New check-in" else "Edit check-in", busy, onClose) {
         OutlinedTextField(
             value = weight, onValueChange = { weight = it; error = null },

@@ -39,10 +39,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             val model: TrackerViewModel = viewModel()
             val state by model.state.collectAsState()
-            StillTheme(state.preferences.darkMode) {
+            val dark = isDarkTheme(state.preferences.themeMode)
+            StillTheme(dark) {
                 val background = MaterialTheme.colorScheme.background.toArgb()
                 SideEffect {
-                    val style = if (state.preferences.darkMode) SystemBarStyle.dark(background) else SystemBarStyle.light(background, background)
+                    val style = if (dark) SystemBarStyle.dark(background) else SystemBarStyle.light(background, background)
                     enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
                 }
                 StillApp(model, state)

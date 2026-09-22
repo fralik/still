@@ -38,7 +38,7 @@ fun RestoreBackupDialog(
                 if (backup.entries.isNotEmpty()) {
                     Text("${backup.entries.minOf { it.date }} to ${backup.entries.maxOf { it.date }}")
                 }
-                Text("Unit: ${preferences.unit.symbol}\nAppearance: ${if (preferences.darkMode) "Dark" else "Light"}")
+                Text("Unit: ${preferences.unit.symbol}\nTheme: ${preferences.themeMode.label}")
                 Text("Goal: ${preferences.goalKg?.let { "${number(preferences.unit.fromKg(it))} ${preferences.unit.symbol}" } ?: "Not set"}\nHeight: ${preferences.heightCm?.let { "${number(it)} cm" } ?: "Not set"}")
                 val time = java.time.LocalTime.of(backup.reminder.hour, backup.reminder.minute)
                 Text("Reminder: ${if (backup.reminder.enabled) "On" else "Off"} / $time (this phone's local time)")

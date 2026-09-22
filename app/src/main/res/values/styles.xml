@@ -6,4 +6,13 @@
         <item name="android:windowActionModeOverlay">true</item>
         <item name="android:windowBackground">#F7F8F2</item>
     </style>
+    <style name="Theme.Still.Dialog.Light" parent="android:style/Theme.Material.Light.Dialog.Alert">
+        <item name="android:colorAccent">#31594A</item>
+    </style>
+    <style name="Theme.Still.Dialog.Dark" parent="android:style/Theme.Material.Dialog.Alert">
+        <item name="android:colorAccent">#8CAA94</item>
+        <item name="android:colorBackground">#1B241E</item>
+        <item name="android:textColorPrimary">#C7D0C8</item>
+        <item name="android:textColorSecondary">#A3ADA5</item>
+    </style>
 </resources>

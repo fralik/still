@@ -37,7 +37,7 @@ object BackupCodec {
     private const val ENTRIES = "entries.csv"
     private val keys = setOf(
         "format", "version", "created_at", "entry_count", "unit", "goal_kg", "height_cm",
-        "dark_mode", "reminder_enabled", "reminder_hour", "reminder_minute",
+        "theme_mode", "reminder_enabled", "reminder_hour", "reminder_minute",
     )
 
     fun encode(backup: FullBackup): ByteArray {
@@ -49,13 +49,13 @@ object BackupCodec {
         val preferences = backup.preferences
         val manifest = """
             format=app.still.backup
-            version=1
+            version=2
             created_at=${backup.createdAt}
             entry_count=${backup.entries.size}
             unit=${preferences.unit.name}
             goal_kg=${preferences.goalKg ?: ""}
             height_cm=${preferences.heightCm ?: ""}
-            dark_mode=${preferences.darkMode}
+            theme_mode=${preferences.themeMode.name}
             reminder_enabled=${backup.reminder.enabled}
             reminder_hour=${backup.reminder.hour}
             reminder_minute=${backup.reminder.minute}
@@ -102,10 +102,12 @@ object BackupCodec {
         }
         properties.load(StringReader(utf8(files.getValue(MANIFEST))))
         require(properties.getProperty("format") == "app.still.backup") { "Unsupported backup format. Choose a .still file." }
-        require(properties.getProperty("version") == "1") {
+        val version = properties.getProperty("version")
+        require(version in setOf("1", "2")) {
             "Unsupported backup version. Update the app before restoring this file."
         }
-        require(properties.stringPropertyNames() == keys) { "The backup has missing or unrecognized settings." }
+        val expectedKeys = if (version == "1") keys - "theme_mode" + "dark_mode" else keys
+        require(properties.stringPropertyNames() == expectedKeys) { "The backup has missing or unrecognized settings." }
         fun field(name: String): String = properties.getProperty(name)
         fun boolean(name: String): Boolean = field(name).toBooleanStrictOrNull()
             ?: throw IllegalArgumentException("Invalid backup setting: $name.")
@@ -123,9 +125,16 @@ object BackupCodec {
         require(entries.size == integer("entry_count")) { "The backup check-in count does not match its contents." }
         val unit = WeightUnit.entries.find { it.name == field("unit") }
             ?: throw IllegalArgumentException("The backup weight unit is invalid.")
+        val theme = if (version == "1") {
+            // A backup is an explicit snapshot: preserve its original light/dark appearance.
+            if (boolean("dark_mode")) ThemeMode.DARK else ThemeMode.LIGHT
+        } else {
+            ThemeMode.entries.find { it.name == field("theme_mode") }
+                ?: throw IllegalArgumentException("The backup theme mode is invalid.")
+        }
         return FullBackup(
             entries,
-            Preferences(unit, optionalNumber("goal_kg"), optionalNumber("height_cm"), boolean("dark_mode")),
+            Preferences(unit, optionalNumber("goal_kg"), optionalNumber("height_cm"), theme),
             ReminderSettings(boolean("reminder_enabled"), integer("reminder_hour"), integer("reminder_minute")),
             Instant.parse(field("created_at")),
         ).also(FullBackup::validate)

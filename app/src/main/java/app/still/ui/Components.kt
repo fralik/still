@@ -172,6 +172,7 @@ fun WeightChart(entries: List<Entry>, unit: WeightUnit, days: Int, height: Int =
     val duration = max((end.toEpochDay() - start.toEpochDay()).toDouble(), 1.0)
     val lineColor = MaterialTheme.colorScheme.primary
     val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val pointCenter = MaterialTheme.colorScheme.surface
     val summary = "${points.size} entries. ${number(values.first())} to ${number(values.last())} ${unit.symbol}, from $start to $end."
     Column(Modifier.semantics(mergeDescendants = true) { contentDescription = summary }) {
         Row(Modifier.fillMaxWidth().height(height.dp)) {
@@ -205,7 +206,7 @@ fun WeightChart(entries: List<Entry>, unit: WeightUnit, days: Int, height: Int =
                 }
                 if (offsets.size < 45) offsets.forEach { drawCircle(lineColor, 2.5.dp.toPx(), it) }
                 drawCircle(lineColor, 5.dp.toPx(), offsets.last())
-                drawCircle(Color.White, 2.dp.toPx(), offsets.last())
+                drawCircle(pointCenter, 2.dp.toPx(), offsets.last())
             }
         }
         Row(Modifier.fillMaxWidth().padding(start = 44.dp, top = 9.dp), horizontalArrangement = Arrangement.SpaceBetween) {

@@ -9,7 +9,7 @@ import app.still.ReminderSettings
 import java.time.LocalDate
 
 class TrackerStore(private val context: Context) :
-    SQLiteOpenHelper(context, "still.db", null, 2) {
+    SQLiteOpenHelper(context, "still.db", null, 3) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -31,7 +31,8 @@ class TrackerStore(private val context: Context) :
                 unit TEXT NOT NULL,
                 goal_kg REAL,
                 height_cm REAL,
-                dark_mode INTEGER NOT NULL
+                dark_mode INTEGER NOT NULL,
+                theme_mode TEXT NOT NULL
             )
             """.trimIndent(),
         )
@@ -40,11 +41,16 @@ class TrackerStore(private val context: Context) :
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        check(oldVersion == 1 && newVersion == 2) { "Unsupported database upgrade from $oldVersion to $newVersion." }
-        val legacy = context.getSharedPreferences("reminder", Context.MODE_PRIVATE)
-        createReminders(db, ReminderSettings(
-            legacy.getBoolean("enabled", false), legacy.getInt("hour", 8), legacy.getInt("minute", 0),
-        ))
+        check(oldVersion in 1..2 && newVersion == 3) { "Unsupported database upgrade from $oldVersion to $newVersion." }
+        if (oldVersion == 1) {
+            val legacy = context.getSharedPreferences("reminder", Context.MODE_PRIVATE)
+            createReminders(db, ReminderSettings(
+                legacy.getBoolean("enabled", false), legacy.getInt("hour", 8), legacy.getInt("minute", 0),
+            ))
+        }
+        // The old false value also represented an untouched default. Explicit dark selections survive.
+        db.execSQL("ALTER TABLE preferences ADD COLUMN theme_mode TEXT NOT NULL DEFAULT 'SYSTEM'")
+        db.execSQL("UPDATE preferences SET theme_mode = 'DARK' WHERE dark_mode <> 0")
     }
 
     private fun createReminders(db: SQLiteDatabase, reminder: ReminderSettings) {
@@ -158,7 +164,7 @@ class TrackerStore(private val context: Context) :
                 unit = WeightUnit.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("unit"))),
                 goalKg = cursor.nullableDouble("goal_kg"),
                 heightCm = cursor.nullableDouble("height_cm"),
-                darkMode = cursor.getInt(cursor.getColumnIndexOrThrow("dark_mode")) != 0,
+                themeMode = ThemeMode.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("theme_mode"))),
             )
         }
 
@@ -209,7 +215,8 @@ class TrackerStore(private val context: Context) :
         put("unit", value.unit.name)
         put("goal_kg", value.goalKg)
         put("height_cm", value.heightCm)
-        put("dark_mode", if (value.darkMode) 1 else 0)
+        put("dark_mode", if (value.themeMode == ThemeMode.DARK) 1 else 0)
+        put("theme_mode", value.themeMode.name)
     }
 
     private fun reminderValues(value: ReminderSettings) = ContentValues().apply {

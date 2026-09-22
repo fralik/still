@@ -18,7 +18,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -29,6 +28,7 @@ import app.still.ReminderSettings
 import app.still.data.Entry
 import app.still.data.Metrics
 import app.still.data.Preferences
+import app.still.data.ThemeMode
 import app.still.data.WeightUnit
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -36,6 +36,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun HomeScreen(state: TrackerState, onAdd: () -> Unit, onEdit: (Entry) -> Unit, onHistory: () -> Unit, onGoal: () -> Unit) {
     val unit = state.preferences.unit
+    val hero = LocalHeroColors.current
     val entries = state.entries
     val latest = entries.firstOrNull()
     var period by rememberSaveable { mutableIntStateOf(30) }
@@ -52,28 +53,28 @@ fun HomeScreen(state: TrackerState, onAdd: () -> Unit, onEdit: (Entry) -> Unit, 
         }
         item {
             Column(
-                Modifier.fillMaxWidth().background(Forest, RoundedCornerShape(30.dp)).padding(24.dp),
+                Modifier.fillMaxWidth().background(hero.background, RoundedCornerShape(30.dp)).padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(15.dp),
             ) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Eyebrow("LATEST WEIGHT", Color(0xFFD1DEC9))
-                    Icon(Icons.Outlined.Spa, null, tint = Lime, modifier = Modifier.size(26.dp))
+                    Eyebrow("LATEST WEIGHT", hero.muted)
+                    Icon(Icons.Outlined.Spa, null, tint = hero.accent, modifier = Modifier.size(26.dp))
                 }
                 if (latest == null) {
-                    Text("No weight recorded", color = Color.White, style = MaterialTheme.typography.headlineLarge)
-                    Text("Log a weight to start tracking.", color = Color(0xFFDFE8D9), style = MaterialTheme.typography.bodyMedium)
+                    Text("No weight recorded", color = hero.foreground, style = MaterialTheme.typography.headlineLarge)
+                    Text("Log a weight to start tracking.", color = hero.muted, style = MaterialTheme.typography.bodyMedium)
                 } else {
                     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Text(number(unit.fromKg(latest.weightKg)), color = Color.White, style = MaterialTheme.typography.displayLarge)
-                        Text(unit.symbol, color = Color(0xFFDFE8D9), fontSize = 23.sp, modifier = Modifier.padding(bottom = 10.dp))
+                        Text(number(unit.fromKg(latest.weightKg)), color = hero.foreground, style = MaterialTheme.typography.displayLarge)
+                        Text(unit.symbol, color = hero.muted, fontSize = 23.sp, modifier = Modifier.padding(bottom = 10.dp))
                     }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(dateLabel(latest.date), color = Color(0xFFDFE8D9), style = MaterialTheme.typography.bodySmall)
+                        Text(dateLabel(latest.date), color = hero.muted, style = MaterialTheme.typography.bodySmall)
                         if (entries.size > 1) {
                             Text(
                                 "${signed(unit.fromKg(latest.weightKg - entries.last().weightKg))} ${unit.symbol} overall",
-                                modifier = Modifier.background(Color.White.copy(alpha = .12f), RoundedCornerShape(20.dp)).padding(horizontal = 11.dp, vertical = 6.dp),
-                                color = Lime, style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.background(hero.foreground.copy(alpha = .12f), RoundedCornerShape(20.dp)).padding(horizontal = 11.dp, vertical = 6.dp),
+                                color = hero.badgeForeground, style = MaterialTheme.typography.labelMedium,
                             )
                         }
                     }
@@ -83,7 +84,7 @@ fun HomeScreen(state: TrackerState, onAdd: () -> Unit, onEdit: (Entry) -> Unit, 
                     enabled = !state.busy,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
                     shape = RoundedCornerShape(18.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Lime, contentColor = Color(0xFF243A28)),
+                    colors = ButtonDefaults.buttonColors(containerColor = hero.accent, contentColor = hero.onAccent),
                 ) {
                     Icon(Icons.Outlined.Add, null, Modifier.size(20.dp))
                     Spacer(Modifier.width(9.dp))
@@ -278,7 +279,7 @@ fun SettingsScreen(
     onRestore: () -> Unit = {},
 ) {
     val preferences = state.preferences
-    val context = LocalContext.current
+    val context = rememberDialogContext()
     var dataToolsExpanded by rememberSaveable { mutableStateOf(false) }
     LazyColumn(
         Modifier.fillMaxSize(), contentPadding = PaddingValues(22.dp, 16.dp, 22.dp, 30.dp),
@@ -311,9 +312,20 @@ fun SettingsScreen(
                     Spacer(Modifier.weight(1f))
                     Icon(Icons.Outlined.ChevronRight, null)
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Dark theme", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                    Switch(checked = preferences.darkMode, enabled = !state.busy, onCheckedChange = { onPreferences(preferences.copy(darkMode = it)) })
+                Text("Theme", style = MaterialTheme.typography.titleSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ThemeMode.entries.forEach { mode ->
+                        FilterChip(
+                            selected = preferences.themeMode == mode,
+                            onClick = { onPreferences(preferences.copy(themeMode = mode)) },
+                            enabled = !state.busy,
+                            label = { Text(mode.label) },
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        )
+                    }
+                }
+                if (preferences.themeMode == ThemeMode.SYSTEM) {
+                    Text("Follows the phone's light or dark theme.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -403,7 +415,7 @@ fun SettingsScreen(
         item {
             Panel {
                 Text("About", style = MaterialTheme.typography.titleLarge)
-                Text("Version 1.2.1", style = MaterialTheme.typography.bodyMedium)
+                Text("Version 1.3.0", style = MaterialTheme.typography.bodyMedium)
                 Text("Inspired by DroidWeight.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             }
         }

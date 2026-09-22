@@ -8,6 +8,10 @@ import app.still.data.Entry
 import app.still.data.Preferences
 import app.still.data.WeightUnit
 import app.still.data.FullBackup
+import app.still.data.ThemeMode
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import app.still.ui.RestoreBackupDialog
 import app.still.ui.EntryEditor
 import app.still.ui.HistoryScreen
@@ -226,7 +230,8 @@ class ScreenInstrumentedTest {
         }
         compose.onNodeWithText("Settings").assertIsDisplayed()
         compose.onNodeWithText("Preferences").assertIsDisplayed()
-        compose.onNodeWithText("Dark theme").assertExists()
+        compose.onNodeWithText("Theme").assertExists()
+        compose.onNodeWithText("System").assertIsSelected()
         compose.onNodeWithText("Made for you.").assertDoesNotExist()
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Daily reminder"))
         compose.onNodeWithText("Daily reminder").assertIsDisplayed()
@@ -251,6 +256,23 @@ class ScreenInstrumentedTest {
         compose.onNodeWithText("Today").assertExists()
         compose.onNodeWithText("A moment for yourself").assertDoesNotExist()
         compose.onNodeWithText("ONE DAY AT A TIME").assertDoesNotExist()
+    }
+
+    @Test
+    fun themeSelectorSupportsSystemAndBothExplicitOverrides() {
+        val original = Preferences(WeightUnit.LB, 70.0, 175.0)
+        var preferences by mutableStateOf(original)
+        compose.setContent {
+            StillTheme {
+                SettingsScreen(TrackerState(preferences = preferences, loading = false), { preferences = it }, {}, {}, {})
+            }
+        }
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Theme"))
+        compose.onNodeWithText("System").assertIsSelected()
+        for (mode in listOf(ThemeMode.DARK, ThemeMode.LIGHT, ThemeMode.SYSTEM)) {
+            compose.onNodeWithText(mode.label).performScrollTo().performClick().assertIsSelected()
+            compose.runOnIdle { assertEquals(original.copy(themeMode = mode), preferences) }
+        }
     }
 
     @Test

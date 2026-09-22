@@ -17,7 +17,7 @@ class BackupCodecTest {
             date = LocalDate.of(2020, 1, 2), weightKg = 72.123456789,
             bodyFat = 21.123456, waistCm = 81.123456, note = "A, \"note\"\r\n\u00e9t\u00e9 \u2600 |",
         )),
-        Preferences(WeightUnit.LB, 70.987654321, 175.123456, true),
+        Preferences(WeightUnit.LB, 70.987654321, 175.123456, ThemeMode.DARK),
         ReminderSettings(true, 23, 59),
         Instant.parse("2026-09-22T07:45:00Z"),
     )
@@ -42,10 +42,10 @@ class BackupCodecTest {
     @Test
     fun missingInvalidUnknownAndRepeatedSettingsAreRejected() {
         val changes = listOf(
-            "version=1" to "version=2",
+            "version=2" to "version=99",
             "format=app.still.backup" to "format=other",
             "unit=LB" to "unit=stones",
-            "dark_mode=true" to "dark_mode=yes",
+            "theme_mode=DARK" to "theme_mode=unknown",
             "goal_kg=70.987654321" to "goal_kg=NaN",
             "height_cm=175.123456" to "height_cm=Infinity",
             "reminder_hour=23" to "reminder_hour=24",
@@ -117,6 +117,38 @@ class BackupCodecTest {
         val files = unpack()
         files["entries.csv"] = byteArrayOf(0xC3.toByte(), 0x28)
         assertThrows(java.nio.charset.CharacterCodingException::class.java) { decode(zip(files)) }
+    }
+
+    @Test
+    fun everyThemeModeRoundTripsIncludingSystemDefault() {
+        for (mode in ThemeMode.entries) {
+            val snapshot = backup.copy(preferences = backup.preferences.copy(themeMode = mode))
+            assertEquals(snapshot, decode(BackupCodec.encode(snapshot)))
+        }
+    }
+
+    @Test
+    fun versionOneBackupsPreserveTheirOriginalExplicitAppearance() {
+        for ((old, expected) in listOf("true" to ThemeMode.DARK, "false" to ThemeMode.LIGHT)) {
+            val files = unpack()
+            files["manifest.properties"] = files.getValue("manifest.properties").toString(Charsets.UTF_8)
+                .replace("version=2", "version=1").replace("theme_mode=DARK", "dark_mode=$old").toByteArray()
+            assertEquals(backup.copy(preferences = backup.preferences.copy(themeMode = expected)), decode(zip(files)))
+        }
+    }
+
+    @Test
+    fun themeFieldsCannotBeMissingOrMixedAcrossBackupVersions() {
+        for (replacement in listOf("", "dark_mode=true", "theme_mode=DARK\ndark_mode=true")) {
+            val files = unpack()
+            files["manifest.properties"] = files.getValue("manifest.properties").toString(Charsets.UTF_8)
+                .replace("theme_mode=DARK", replacement).toByteArray()
+            assertThrows(IllegalArgumentException::class.java) { decode(zip(files)) }
+        }
+        val files = unpack()
+        files["manifest.properties"] = files.getValue("manifest.properties").toString(Charsets.UTF_8)
+            .replace("version=2", "version=1").replace("theme_mode=DARK", "dark_mode=maybe").toByteArray()
+        assertThrows(IllegalArgumentException::class.java) { decode(zip(files)) }
     }
 
     private fun decode(bytes: ByteArray) = BackupCodec.decode(ByteArrayInputStream(bytes))
