@@ -24,7 +24,7 @@ data class ReminderSettings(val enabled: Boolean = false, val hour: Int = 8, val
 
 object Reminders {
     private const val CHANNEL = "daily_check_in"
-    private const val ACTION = "app.still.DAILY_CHECK_IN"
+    private const val ACTION = "${BuildConfig.APPLICATION_ID}.DAILY_CHECK_IN"
     private const val ID = 104
 
     fun settings(context: Context): ReminderSettings {

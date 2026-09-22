@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.still.TrackerState
+import app.still.BuildConfig
 import app.still.ReminderSettings
 import app.still.data.Entry
 import app.still.data.Metrics
@@ -415,7 +416,7 @@ fun SettingsScreen(
         item {
             Panel {
                 Text("About", style = MaterialTheme.typography.titleLarge)
-                Text("Version 1.3.0", style = MaterialTheme.typography.bodyMedium)
+                Text("Version ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyMedium)
                 Text("Inspired by DroidWeight.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             }
         }

@@ -1,0 +1,3 @@
+First public release under com.vadimfrolov.still.
+
+Track weight and measurements, explore trends, set reminders, and transfer your journal with full backups or CSV. Choose system, light, or dark appearance.

@@ -1,0 +1,19 @@
+Still is a simple weight journal inspired by DroidWeight.
+
+Record daily measurements, review your history, and follow your progress without an account.
+
+Features:
+* Weight entries in kilograms or pounds
+* Optional body fat, waist measurements, and notes
+* Weight charts, seven-day averages, and period statistics
+* Optional goal weight and BMI reference
+* Daily reminders
+* System, light, and dark themes
+* Full backup and restore, including settings
+* CSV import/export and DroidWeight import
+
+Each date has one entry. Charts show weight; other measurements appear in entry details.
+
+Full backups replace the destination journal and settings. CSV imports add missing dates without overwriting existing entries. Exported files are not encrypted.
+
+Still works offline, with no ads, analytics, or internet permission. Cloud backup and multi-device synchronization are not supported.

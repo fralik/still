@@ -114,9 +114,11 @@ To install and launch it on a connected device with USB debugging enabled:
 
 ```powershell
 & "$env:ANDROID_HOME\platform-tools\adb.exe" install -r .\app\build\outputs\apk\debug\app-debug.apk
-& "$env:ANDROID_HOME\platform-tools\adb.exe" shell am start -n app.still/.MainActivity
+& "$env:ANDROID_HOME\platform-tools\adb.exe" shell am start -n com.vadimfrolov.still.debug/app.still.MainActivity
 ```
 
+The release application ID is `com.vadimfrolov.still`. Debug builds use
+`com.vadimfrolov.still.debug`, so they can be installed alongside a release.
 Release builds require a signing configuration before distribution.
 
 ## Development
@@ -143,3 +145,7 @@ Application sources are under `app\src\main\java\app\still`.
 | `ui` | Compose screens, editors, charts, and themes |
 | `app\src\test` | Unit tests |
 | `app\src\androidTest` | Database and UI integration tests |
+
+## License
+
+MIT. See `LICENSE` for the full terms.
