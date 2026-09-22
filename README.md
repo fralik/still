@@ -134,6 +134,10 @@ Instrumented tests require an unlocked device or emulator. They use isolated
 databases and in-memory UI states rather than the user's journal, and leave the
 app installed after the run.
 
+To generate store screenshots with sample data, run the instrumented suite with
+`-Pandroid.testInstrumentationRunnerArguments.captureStoreListing=true`.
+Images are saved in the debug app's external files directory under `store-listing`.
+
 ### Project structure
 
 Application sources are under `app\src\main\java\app\still`.
