@@ -66,7 +66,10 @@ private fun StillApp(model: TrackerViewModel, state: TrackerState) {
     var pendingReminderMinute by rememberSaveable { mutableIntStateOf(0) }
     DisposableEffect(lifecycle, context) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) notificationsAllowed = Reminders.allowed(context)
+            if (event == Lifecycle.Event.ON_RESUME) {
+                notificationsAllowed = Reminders.allowed(context)
+                model.refreshReminderSchedule()
+            }
         }
         lifecycle.lifecycle.addObserver(observer)
         onDispose { lifecycle.lifecycle.removeObserver(observer) }
@@ -90,6 +93,12 @@ private fun StillApp(model: TrackerViewModel, state: TrackerState) {
     }
     val import = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) model.prepareImport(uri)
+    }
+    val backup = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+        if (uri != null) model.createBackup(uri)
+    }
+    val restore = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) model.prepareRestore(uri)
     }
     val add: () -> Unit = {
         editorId = state.entries.firstOrNull { it.date == LocalDate.now() }?.id ?: -1L
@@ -159,6 +168,8 @@ private fun StillApp(model: TrackerViewModel, state: TrackerState) {
                             { import.launch(arrayOf("text/*", "application/csv", "application/octet-stream")) },
                             { export.launch("still-${LocalDate.now()}.csv") },
                             notificationsAllowed, setReminder,
+                            onBackup = { backup.launch("still-${LocalDate.now()}.still") },
+                            onRestore = { restore.launch(arrayOf("*/*")) },
                         )
                     }
                 }
@@ -189,6 +200,12 @@ private fun StillApp(model: TrackerViewModel, state: TrackerState) {
             text = { Text("Found ${pending.size} check-ins. New dates will be added; existing dates will be skipped. Your current entries will not be changed.") },
             confirmButton = { TextButton(onClick = model::confirmImport, enabled = !state.busy) { Text("Import") } },
             dismissButton = { TextButton(onClick = model::cancelImport, enabled = !state.busy) { Text("Cancel") } },
+        )
+    }
+    state.pendingRestore?.let { pending ->
+        RestoreBackupDialog(
+            pending, state.entries.size, state.busy, Reminders.allowed(context),
+            model::cancelRestore, model::confirmRestore,
         )
     }
     state.error?.let { error ->

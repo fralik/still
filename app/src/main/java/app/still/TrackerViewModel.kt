@@ -6,6 +6,8 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.still.data.CsvCodec
+import app.still.data.BackupCodec
+import app.still.data.FullBackup
 import app.still.data.Entry
 import app.still.data.Preferences
 import app.still.data.TrackerStore
@@ -26,6 +28,7 @@ data class TrackerState(
     val message: String? = null,
     val pendingImport: List<Entry>? = null,
     val reminder: ReminderSettings = ReminderSettings(),
+    val pendingRestore: FullBackup? = null,
 )
 
 class TrackerViewModel(application: Application) : AndroidViewModel(application) {
@@ -38,7 +41,22 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
     fun clearError() = mutableState.update { it.copy(error = null) }
     fun clearMessage() = mutableState.update { it.copy(message = null) }
     fun cancelImport() = mutableState.update { it.copy(pendingImport = null) }
+    fun cancelRestore() = mutableState.update { it.copy(pendingRestore = null) }
     fun notifyUser(message: String) = mutableState.update { it.copy(message = message) }
+
+    fun refreshReminderSchedule() {
+        val current = mutableState.value
+        if (current.loading || current.busy) return
+        // Do not acquire the operation gate during onResume: a document-picker result may follow it.
+        try {
+            Reminders.schedule(getApplication(), current.reminder)
+        } catch (error: RuntimeException) {
+            Log.e("Still", "Could not refresh reminder after returning to the app", error)
+            mutableState.update {
+                it.copy(error = "Your journal is unchanged, but Android could not update the reminder. Reopen Still to retry.")
+            }
+        }
+    }
 
     private fun perform(work: suspend () -> Unit) {
         if (mutableState.value.busy) return
@@ -60,11 +78,11 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun reload() = perform {
-        val entries = withContext(Dispatchers.IO) { store.entries() }
-        val preferences = withContext(Dispatchers.IO) { store.preferences() }
-        val reminder = withContext(Dispatchers.IO) { Reminders.settings(getApplication()) }
-        mutableState.update { it.copy(entries = entries, preferences = preferences, reminder = reminder, loading = false) }
-        withContext(Dispatchers.IO) { Reminders.schedule(getApplication(), reminder) }
+        val snapshot = withContext(Dispatchers.IO) { store.fullBackup() }
+        mutableState.update {
+            it.copy(entries = snapshot.entries, preferences = snapshot.preferences, reminder = snapshot.reminder, loading = false)
+        }
+        withContext(Dispatchers.IO) { Reminders.schedule(getApplication(), snapshot.reminder) }
     }
 
     fun saveEntry(entry: Entry, done: () -> Unit) = perform {
@@ -92,8 +110,66 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun saveReminder(reminder: ReminderSettings) = perform {
-        withContext(Dispatchers.IO) { Reminders.save(getApplication(), reminder) }
+        if (reminder.enabled) {
+            require(Reminders.allowed(getApplication())) {
+                "Notifications are disabled. Enable Still notifications in Android Settings, then try again."
+            }
+        }
+        withContext(Dispatchers.IO) { store.saveReminder(reminder) }
         mutableState.update { it.copy(reminder = reminder) }
+        scheduleReminder(reminder, "Reminder settings saved")
+    }
+
+    fun createBackup(uri: Uri) = perform {
+        val count = withContext(Dispatchers.IO) {
+            val snapshot = store.fullBackup()
+            val bytes = BackupCodec.encode(snapshot)
+            val stream = getApplication<Application>().contentResolver.openOutputStream(uri, "wt")
+                ?: throw IOException("Could not open the selected backup file.")
+            try {
+                stream.use { it.write(bytes) }
+            } catch (error: IOException) {
+                throw IOException("Backup could not be completed. Delete the incomplete file and try again.", error)
+            }
+            snapshot.entries.size
+        }
+        mutableState.update { it.copy(message = "Full backup saved: $count check-ins and all settings. Keep the file private.") }
+    }
+
+    fun prepareRestore(uri: Uri) = perform {
+        val backup = withContext(Dispatchers.IO) {
+            val stream = getApplication<Application>().contentResolver.openInputStream(uri)
+                ?: throw IOException("Could not open the selected backup file.")
+            stream.use(BackupCodec::decode)
+        }
+        mutableState.update { it.copy(pendingRestore = backup) }
+    }
+
+    fun confirmRestore() {
+        val backup = mutableState.value.pendingRestore ?: return
+        perform {
+            val restored = withContext(Dispatchers.IO) { store.restoreBackup(backup) }
+            val blocked = restored.reminder.enabled && !Reminders.allowed(getApplication())
+            mutableState.update {
+                it.copy(
+                    entries = restored.entries, preferences = restored.preferences, reminder = restored.reminder,
+                    pendingRestore = null,
+                    message = if (blocked) "Backup restored. Reminders are paused until you allow notifications in Android Settings."
+                    else "Restored ${restored.entries.size} check-ins and all settings.",
+                )
+            }
+            scheduleReminder(restored.reminder, "Your journal and settings were restored")
+        }
+    }
+
+    private suspend fun scheduleReminder(reminder: ReminderSettings, completed: String) {
+        try {
+            withContext(Dispatchers.IO) { Reminders.schedule(getApplication(), reminder) }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: RuntimeException) {
+            throw IOException("$completed, but Android could not update the reminder. Reopen Still to retry.", error)
+        }
     }
 
     fun export(uri: Uri) = perform {

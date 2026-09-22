@@ -7,6 +7,8 @@ import androidx.test.espresso.Espresso.closeSoftKeyboard
 import app.still.data.Entry
 import app.still.data.Preferences
 import app.still.data.WeightUnit
+import app.still.data.FullBackup
+import app.still.ui.RestoreBackupDialog
 import app.still.ui.EntryEditor
 import app.still.ui.HistoryScreen
 import app.still.ui.HomeScreen
@@ -159,5 +161,58 @@ class ScreenInstrumentedTest {
             assertEquals(WeightUnit.LB, updated!!.unit)
             assertEquals(70.0, updated!!.goalKg!!, 0.0)
         }
+    }
+
+    @Test
+    fun fullBackupIsAvailableForAnEmptyJournal() {
+        var requested = false
+        compose.setContent {
+            StillTheme {
+                SettingsScreen(
+                    TrackerState(loading = false), {}, {}, {}, {},
+                    onBackup = { requested = true },
+                )
+            }
+        }
+        compose.onNodeWithText("Create full backup").performScrollTo().assertIsEnabled().performClick()
+        compose.runOnIdle { assertTrue(requested) }
+    }
+
+    @Test
+    fun restoreRequiresExplicitReplacementAndCanBeCancelled() {
+        var restored = false
+        var cancelled = false
+        compose.setContent {
+            StillTheme {
+                RestoreBackupDialog(
+                    FullBackup(emptyList(), Preferences(), ReminderSettings(true, 8, 15)),
+                    12, false, false, { cancelled = true }, { restored = true },
+                )
+            }
+        }
+        compose.onNodeWithText("This replaces all 12 current check-ins", substring = true).assertExists()
+        compose.onNodeWithText("Reminders will be paused", substring = true).assertExists()
+        compose.runOnIdle { assertFalse(restored) }
+        compose.onNodeWithText("Cancel").performClick()
+        compose.runOnIdle {
+            assertTrue(cancelled)
+            assertFalse(restored)
+        }
+        compose.onNodeWithText("Replace journal").performClick()
+        compose.runOnIdle { assertTrue(restored) }
+    }
+
+    @Test
+    fun restoreButtonsAreDisabledWhileWriting() {
+        compose.setContent {
+            StillTheme {
+                RestoreBackupDialog(
+                    FullBackup(emptyList(), Preferences(), ReminderSettings()),
+                    0, true, true, {}, {},
+                )
+            }
+        }
+        compose.onNodeWithText("Restoring...").assertIsNotEnabled()
+        compose.onNodeWithText("Cancel").assertIsNotEnabled()
     }
 }

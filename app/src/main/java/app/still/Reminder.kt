@@ -13,10 +13,14 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
-import java.io.IOException
+import app.still.data.TrackerStore
 import java.time.ZonedDateTime
 
-data class ReminderSettings(val enabled: Boolean = false, val hour: Int = 8, val minute: Int = 0)
+data class ReminderSettings(val enabled: Boolean = false, val hour: Int = 8, val minute: Int = 0) {
+    fun validate() {
+        require(hour in 0..23 && minute in 0..59) { "Choose a valid reminder time." }
+    }
+}
 
 object Reminders {
     private const val CHANNEL = "daily_check_in"
@@ -24,30 +28,13 @@ object Reminders {
     private const val ID = 104
 
     fun settings(context: Context): ReminderSettings {
-        val prefs = context.getSharedPreferences("reminder", Context.MODE_PRIVATE)
-        return ReminderSettings(prefs.getBoolean("enabled", false), prefs.getInt("hour", 8), prefs.getInt("minute", 0))
+        return TrackerStore(context).use { it.reminder() }
     }
 
     fun allowed(context: Context): Boolean {
         val manager = context.getSystemService(NotificationManager::class.java)
         val permission = Build.VERSION.SDK_INT < 33 || context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         return permission && manager.areNotificationsEnabled() && manager.getNotificationChannel(CHANNEL)?.importance != NotificationManager.IMPORTANCE_NONE
-    }
-
-    fun save(context: Context, value: ReminderSettings) {
-        require(value.hour in 0..23 && value.minute in 0..59) { "Choose a valid reminder time." }
-        if (value.enabled) {
-            require(allowed(context)) { "Notifications are disabled. Enable Still notifications in Android Settings, then try again." }
-            schedule(context, value)
-        } else {
-            context.getSystemService(AlarmManager::class.java).cancel(pending(context))
-        }
-        val saved = context.getSharedPreferences("reminder", Context.MODE_PRIVATE).edit()
-            .putBoolean("enabled", value.enabled).putInt("hour", value.hour).putInt("minute", value.minute).commit()
-        if (!saved) {
-            context.getSystemService(AlarmManager::class.java).cancel(pending(context))
-            throw IOException("Couldn't save the reminder. Please try again.")
-        }
     }
 
     internal fun nextTime(value: ReminderSettings, now: ZonedDateTime): ZonedDateTime {
@@ -61,7 +48,11 @@ object Reminders {
     )
 
     fun schedule(context: Context, value: ReminderSettings = settings(context)) {
-        if (!value.enabled) return
+        value.validate()
+        if (!value.enabled || !allowed(context)) {
+            context.getSystemService(AlarmManager::class.java).cancel(pending(context))
+            return
+        }
         val time = nextTime(value, ZonedDateTime.now()).toInstant().toEpochMilli()
         context.getSystemService(AlarmManager::class.java).setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, time, pending(context))
     }

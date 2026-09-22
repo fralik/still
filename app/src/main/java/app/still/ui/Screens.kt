@@ -285,6 +285,8 @@ fun SettingsScreen(
     onExport: () -> Unit,
     notificationsAllowed: Boolean = true,
     onReminder: (ReminderSettings) -> Unit = {},
+    onBackup: () -> Unit = {},
+    onRestore: () -> Unit = {},
 ) {
     val preferences = state.preferences
     val context = LocalContext.current
@@ -366,8 +368,26 @@ fun SettingsScreen(
         }
         item {
             Panel {
+                Text("Moving to a new phone?", style = MaterialTheme.typography.titleLarge)
+                Text("A full backup includes every check-in, note, goal, height, unit, appearance, and reminder setting.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                Button(onClick = onBackup, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
+                    Icon(Icons.Outlined.FileUpload, null, Modifier.size(19.dp))
+                    Spacer(Modifier.width(9.dp))
+                    Text("Create full backup")
+                }
+                OutlinedButton(onClick = onRestore, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
+                    Icon(Icons.Outlined.FileDownload, null, Modifier.size(19.dp))
+                    Spacer(Modifier.width(9.dp))
+                    Text("Restore full backup")
+                }
+                Text("Transfer the .still file to your new phone, then restore it here. You'll review the backup before it replaces this device's journal and settings.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Backups are not encrypted. Keep the file private. There is no automatic backup or synchronization.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        item {
+            Panel {
                 Text("Your data stays yours", style = MaterialTheme.typography.titleLarge)
-                Text("Save a CSV backup or bring your history with you. Imports add new dates without replacing existing check-ins.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                Text("CSV is for measurements and notes only, not settings. Imports add new dates without replacing existing check-ins.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                 OutlinedButton(onClick = onExport, enabled = !state.busy && state.entries.isNotEmpty(), modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
                     Icon(Icons.Outlined.FileUpload, null, Modifier.size(19.dp))
                     Spacer(Modifier.width(9.dp))
@@ -378,7 +398,7 @@ fun SettingsScreen(
                     Spacer(Modifier.width(9.dp))
                     Text("Import CSV")
                 }
-                Text("Accepts Still backups and original DroidWeight exports. Keep a backup before changing phones or uninstalling.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Accepts Still CSV files and original DroidWeight exports. Use full backup above to transfer settings too.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         item {
@@ -387,7 +407,7 @@ fun SettingsScreen(
                 Text("Private by design.", style = MaterialTheme.typography.titleLarge)
                 Text("No account. No ads. No analytics. Still has no internet permission, and automatic cloud backups are disabled.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Text("STILL / 1.0.0", style = MaterialTheme.typography.labelSmall, letterSpacing = 2.sp)
+                Text("STILL / 1.1.0", style = MaterialTheme.typography.labelSmall, letterSpacing = 2.sp)
                 Text("A fresh take on the simplicity of DroidWeight.\nBuilt for a little more perspective.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             }
         }

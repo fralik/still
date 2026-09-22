@@ -8,3 +8,4 @@ local.properties
 *.keystore
 *-output.log
 dependencies.log
+*.still
