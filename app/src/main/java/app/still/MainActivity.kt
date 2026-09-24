@@ -139,7 +139,7 @@ private fun StillApp(model: TrackerViewModel, state: TrackerState) {
     editorId?.let { id ->
         key(id) {
             EntryEditor(
-                entry = state.entries.find { it.id == id }, suggestedKg = state.entries.firstOrNull()?.weightKg,
+                entry = state.entries.find { it.id == id },
                 unit = state.preferences.unit, busy = state.busy, onClose = { editorId = null },
                 onSave = { model.saveEntry(it) { editorId = null } },
                 onDelete = { model.deleteEntry(it) { editorId = null } },

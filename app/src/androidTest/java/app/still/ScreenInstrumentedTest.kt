@@ -3,6 +3,8 @@ package app.still
 import androidx.compose.material3.Surface
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.text.AnnotatedString
 import androidx.test.espresso.Espresso.closeSoftKeyboard
 import app.still.data.Entry
 import app.still.data.Preferences
@@ -66,9 +68,13 @@ class ScreenInstrumentedTest {
         var saved: Entry? = null
         compose.setContent {
             StillTheme {
-                EntryEditor(null, null, WeightUnit.KG, false, {}, { saved = it }, {})
+                EntryEditor(null, WeightUnit.KG, false, {}, { saved = it }, {})
             }
         }
+        compose.onNodeWithText("Weight (kg)")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("")))
+            .performClick()
+        compose.onNodeWithText("Enter weight").assertIsDisplayed()
         compose.onNodeWithText("Weight (kg)").performTextInput("-1")
         closeSoftKeyboard()
         compose.waitForIdle()
@@ -97,7 +103,7 @@ class ScreenInstrumentedTest {
         var saved: Entry? = null
         compose.setContent {
             StillTheme {
-                EntryEditor(original, null, WeightUnit.LB, false, {}, { saved = it }, {})
+                EntryEditor(original, WeightUnit.LB, false, {}, { saved = it }, {})
             }
         }
         compose.onNodeWithText("Save check-in").performScrollTo().performClick()
@@ -110,7 +116,7 @@ class ScreenInstrumentedTest {
         var deleted = false
         compose.setContent {
             StillTheme {
-                EntryEditor(entry, null, WeightUnit.KG, false, {}, {}, { deleted = true })
+                EntryEditor(entry, WeightUnit.KG, false, {}, {}, { deleted = true })
             }
         }
         compose.onNodeWithText("Delete entry").performScrollTo().performClick()
@@ -351,6 +357,25 @@ class ScreenInstrumentedTest {
         closeSoftKeyboard()
         compose.onNodeWithText("Save preferences").performScrollTo().performClick()
         compose.onNodeWithText("Height must be at most 300 cm.").assertExists()
+        compose.runOnIdle { assertNull(saved) }
+    }
+
+    @Test
+    fun clearingAnExistingWeightShowsOnlyThePromptAndCannotSaveTheOldValue() {
+        val original = Entry(1, LocalDate.now(), 72.4)
+        var saved: Entry? = null
+        compose.setContent {
+            StillTheme { EntryEditor(original, WeightUnit.KG, false, {}, { saved = it }, {}) }
+        }
+        compose.onNodeWithText("Weight (kg)")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("72.4")))
+            .performTextClearance()
+        compose.onNodeWithText("Enter weight").assertIsDisplayed()
+        compose.onNodeWithText("72.4").assertDoesNotExist()
+        closeSoftKeyboard()
+        compose.waitForIdle()
+        compose.onNodeWithText("Save check-in").performScrollTo().performClick()
+        compose.onNodeWithText("Enter a positive number for weight.").assertExists()
         compose.runOnIdle { assertNull(saved) }
     }
 }

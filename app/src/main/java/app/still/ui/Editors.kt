@@ -70,7 +70,6 @@ private fun EditorFrame(title: String, busy: Boolean, onClose: () -> Unit, conte
 @Composable
 fun EntryEditor(
     entry: Entry?,
-    suggestedKg: Double?,
     unit: WeightUnit,
     busy: Boolean,
     onClose: () -> Unit,
@@ -92,7 +91,7 @@ fun EntryEditor(
         OutlinedTextField(
             value = weight, onValueChange = { weight = it; error = null },
             label = { Text("Weight (${unit.symbol})") },
-            placeholder = { Text(suggestedKg?.let { number(unit.fromKg(it)) } ?: "Enter weight") },
+            placeholder = { Text("Enter weight") },
             suffix = { Text(unit.symbol) },
             modifier = Modifier.fillMaxWidth(),
             textStyle = MaterialTheme.typography.headlineLarge,
