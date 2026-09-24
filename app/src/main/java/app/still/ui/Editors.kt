@@ -91,29 +91,31 @@ fun EntryEditor(
         OutlinedTextField(
             value = weight, onValueChange = { weight = it; error = null },
             label = { Text("Weight (${unit.symbol})") },
-            placeholder = { Text("Enter weight") },
             suffix = { Text(unit.symbol) },
             modifier = Modifier.fillMaxWidth(),
             textStyle = MaterialTheme.typography.headlineLarge,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             singleLine = true, enabled = !busy,
         )
-        OutlinedButton(
-            onClick = {
-                val selected = LocalDate.parse(date)
-                DatePickerDialog(context, { _, year, month, day ->
-                    date = LocalDate.of(year, month + 1, day).toString()
-                }, selected.year, selected.monthValue - 1, selected.dayOfMonth).apply {
-                    datePicker.maxDate = LocalDate.now().plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
-                }.show()
-            },
-            enabled = !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-        ) {
-            Icon(Icons.Outlined.CalendarToday, null)
-            Spacer(Modifier.width(10.dp))
-            Text(dateLabel(LocalDate.parse(date)))
-            Spacer(Modifier.weight(1f))
-            Text("Change")
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Date", style = MaterialTheme.typography.labelLarge)
+            OutlinedButton(
+                onClick = {
+                    val selected = LocalDate.parse(date)
+                    DatePickerDialog(context, { _, year, month, day ->
+                        date = LocalDate.of(year, month + 1, day).toString()
+                    }, selected.year, selected.monthValue - 1, selected.dayOfMonth).apply {
+                        datePicker.maxDate = LocalDate.now().plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
+                    }.show()
+                },
+                enabled = !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+            ) {
+                Icon(Icons.Outlined.CalendarToday, null)
+                Spacer(Modifier.width(10.dp))
+                Text(dateLabel(LocalDate.parse(date)))
+                Spacer(Modifier.weight(1f))
+                Text("Change")
+            }
         }
         Text("One check-in per day. You can edit earlier dates in History.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Eyebrow("OPTIONAL DETAILS")
@@ -135,7 +137,6 @@ fun EntryEditor(
                 error = if (it.length > 2000) "Notes can contain at most 2000 characters." else null
             },
             label = { Text("Note") },
-            placeholder = { Text("Morning check-in, after a walk...") },
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             modifier = Modifier.fillMaxWidth(), minLines = 3, maxLines = 6, enabled = !busy,
             supportingText = { Text("${note.length}/2000") }, isError = note.length > 2000,

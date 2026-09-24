@@ -74,7 +74,7 @@ class ScreenInstrumentedTest {
         compose.onNodeWithText("Weight (kg)")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("")))
             .performClick()
-        compose.onNodeWithText("Enter weight").assertIsDisplayed()
+        compose.onNodeWithText("Enter weight").assertDoesNotExist()
         compose.onNodeWithText("Weight (kg)").performTextInput("-1")
         closeSoftKeyboard()
         compose.waitForIdle()
@@ -82,8 +82,8 @@ class ScreenInstrumentedTest {
         compose.onNodeWithText("Enter a positive number for weight.").assertExists()
         compose.runOnIdle { assertNull(saved) }
         compose.onNodeWithText("Weight (kg)").performScrollTo().performTextReplacement("72,4")
-        compose.onNodeWithText("Body fat (%)").performTextInput("21.5")
-        compose.onNodeWithText("Waist (cm)").performTextInput("81.2")
+        compose.onNodeWithText("Body fat (%)").performScrollTo().performTextInput("21.5")
+        compose.onNodeWithText("Waist (cm)").performScrollTo().performTextInput("81.2")
         compose.onNodeWithText("Note").performScrollTo().performTextInput("After a walk")
         closeSoftKeyboard()
         compose.waitForIdle()
@@ -361,7 +361,7 @@ class ScreenInstrumentedTest {
     }
 
     @Test
-    fun clearingAnExistingWeightShowsOnlyThePromptAndCannotSaveTheOldValue() {
+    fun clearingAnExistingWeightKeepsItsLabelWithoutAHintOrOldValue() {
         val original = Entry(1, LocalDate.now(), 72.4)
         var saved: Entry? = null
         compose.setContent {
@@ -370,12 +370,63 @@ class ScreenInstrumentedTest {
         compose.onNodeWithText("Weight (kg)")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("72.4")))
             .performTextClearance()
-        compose.onNodeWithText("Enter weight").assertIsDisplayed()
+        compose.onNodeWithText("Weight (kg)")
+            .assertIsDisplayed()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("")))
+        compose.onNodeWithText("Enter weight").assertDoesNotExist()
         compose.onNodeWithText("72.4").assertDoesNotExist()
         closeSoftKeyboard()
         compose.waitForIdle()
         compose.onNodeWithText("Save check-in").performScrollTo().performClick()
         compose.onNodeWithText("Enter a positive number for weight.").assertExists()
         compose.runOnIdle { assertNull(saved) }
+    }
+
+    @Test
+    fun everyEntryInputKeepsItsLabelWhenEmptyFocusedPopulatedAndCleared() {
+        compose.setContent { StillTheme { EntryEditor(null, WeightUnit.KG, false, {}, {}, {}) } }
+        compose.onNodeWithText("Date").assertIsDisplayed()
+        for ((label, value) in listOf(
+            "Weight (kg)" to "72.4",
+            "Body fat (%)" to "21.5",
+            "Waist (cm)" to "81.2",
+            "Note" to "After a walk",
+        )) {
+            val input = compose.onNodeWithText(label)
+            input.performScrollTo().assertIsDisplayed()
+                .assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("")))
+                .performClick()
+            input.assertIsDisplayed()
+            compose.onNodeWithText("Enter weight").assertDoesNotExist()
+            compose.onNodeWithText("Morning check-in, after a walk...").assertDoesNotExist()
+            input.performScrollTo().performTextInput(value)
+            input.assertIsDisplayed()
+                .assert(SemanticsMatcher("Editable text is '$value'") {
+                    it.config[SemanticsProperties.EditableText].text == value
+                })
+            closeSoftKeyboard()
+            compose.waitForIdle()
+            input.performScrollTo().assertIsDisplayed().performTextClearance()
+            input.assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("")))
+                .assertIsDisplayed()
+            closeSoftKeyboard()
+        }
+    }
+
+    @Test
+    fun heightInputKeepsItsLabelWhileTypingAndClearing() {
+        compose.setContent { StillTheme { PreferencesEditor(Preferences(), false, {}, {}) } }
+        val input = compose.onNodeWithText("Height (cm)")
+        input.assertIsDisplayed()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("")))
+            .performClick().assertIsDisplayed()
+        input.performTextInput("175")
+        input.assertIsDisplayed()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("175")))
+        closeSoftKeyboard()
+        compose.waitForIdle()
+        input.assertIsDisplayed().performTextClearance()
+        input.assertIsDisplayed()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("")))
     }
 }
