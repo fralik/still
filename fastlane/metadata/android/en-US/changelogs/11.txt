@@ -1,0 +1,1 @@
+Input labels stay fixed above their fields. Focusing, typing, and clearing no longer move or resize labels.

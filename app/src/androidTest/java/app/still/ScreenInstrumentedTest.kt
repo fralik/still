@@ -31,6 +31,24 @@ import java.time.LocalDate
 class ScreenInstrumentedTest {
     @get:Rule val compose = createComposeRule()
 
+    private fun labelGeometry(label: String): List<Float> {
+        val caption = compose.onNodeWithTag("input-label:$label").getUnclippedBoundsInRoot()
+        val field = compose.onNodeWithContentDescription(label).getUnclippedBoundsInRoot()
+        assertTrue("Label must stay above the field", caption.bottom < field.top)
+        return listOf(
+            caption.left.value - field.left.value,
+            caption.top.value - field.top.value,
+            caption.right.value - caption.left.value,
+            caption.bottom.value - caption.top.value,
+        )
+    }
+
+    private fun assertFixedLabel(label: String, expected: List<Float>) {
+        expected.zip(labelGeometry(label)).forEach { (before, after) ->
+            assertEquals("Label position and size must not change for $label", before, after, 0.1f)
+        }
+    }
+
     @Test
     fun emptyHomeHasAnActionAndNoInventedWeight() {
         var clicked = false
@@ -71,20 +89,20 @@ class ScreenInstrumentedTest {
                 EntryEditor(null, WeightUnit.KG, false, {}, { saved = it }, {})
             }
         }
-        compose.onNodeWithText("Weight (kg)")
+        compose.onNodeWithContentDescription("Weight (kg)")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("")))
             .performClick()
         compose.onNodeWithText("Enter weight").assertDoesNotExist()
-        compose.onNodeWithText("Weight (kg)").performTextInput("-1")
+        compose.onNodeWithContentDescription("Weight (kg)").performTextInput("-1")
         closeSoftKeyboard()
         compose.waitForIdle()
         compose.onNodeWithText("Save check-in").performScrollTo().performClick()
         compose.onNodeWithText("Enter a positive number for weight.").assertExists()
         compose.runOnIdle { assertNull(saved) }
-        compose.onNodeWithText("Weight (kg)").performScrollTo().performTextReplacement("72,4")
-        compose.onNodeWithText("Body fat (%)").performScrollTo().performTextInput("21.5")
-        compose.onNodeWithText("Waist (cm)").performScrollTo().performTextInput("81.2")
-        compose.onNodeWithText("Note").performScrollTo().performTextInput("After a walk")
+        compose.onNodeWithContentDescription("Weight (kg)").performScrollTo().performTextReplacement("72,4")
+        compose.onNodeWithContentDescription("Body fat (%)").performScrollTo().performTextInput("21.5")
+        compose.onNodeWithContentDescription("Waist (cm)").performScrollTo().performTextInput("81.2")
+        compose.onNodeWithContentDescription("Note").performScrollTo().performTextInput("After a walk")
         closeSoftKeyboard()
         compose.waitForIdle()
         compose.onNodeWithText("Save check-in").performScrollTo().performClick()
@@ -137,7 +155,7 @@ class ScreenInstrumentedTest {
             }
         }
         compose.onNodeWithText("Goal", substring = true).assertDoesNotExist()
-        compose.onNodeWithText("Height (cm)").performTextClearance()
+        compose.onNodeWithContentDescription("Height (cm)").performTextClearance()
         closeSoftKeyboard()
         compose.waitForIdle()
         compose.onNodeWithText("Save preferences").performScrollTo().performClick()
@@ -353,7 +371,7 @@ class ScreenInstrumentedTest {
         compose.setContent { StillTheme { PreferencesEditor(original, false, {}, { saved = it }) } }
         compose.onNodeWithText("Save preferences").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(original, saved); saved = null }
-        compose.onNodeWithText("Height (cm)").performTextReplacement("301")
+        compose.onNodeWithContentDescription("Height (cm)").performTextReplacement("301")
         closeSoftKeyboard()
         compose.onNodeWithText("Save preferences").performScrollTo().performClick()
         compose.onNodeWithText("Height must be at most 300 cm.").assertExists()
@@ -367,14 +385,16 @@ class ScreenInstrumentedTest {
         compose.setContent {
             StillTheme { EntryEditor(original, WeightUnit.KG, false, {}, { saved = it }, {}) }
         }
-        compose.onNodeWithText("Weight (kg)")
+        val geometry = labelGeometry("Weight (kg)")
+        compose.onNodeWithContentDescription("Weight (kg)")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("72.4")))
             .performTextClearance()
-        compose.onNodeWithText("Weight (kg)")
+        compose.onNodeWithContentDescription("Weight (kg)")
             .assertIsDisplayed()
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("")))
         compose.onNodeWithText("Enter weight").assertDoesNotExist()
         compose.onNodeWithText("72.4").assertDoesNotExist()
+        assertFixedLabel("Weight (kg)", geometry)
         closeSoftKeyboard()
         compose.waitForIdle()
         compose.onNodeWithText("Save check-in").performScrollTo().performClick()
@@ -392,11 +412,13 @@ class ScreenInstrumentedTest {
             "Waist (cm)" to "81.2",
             "Note" to "After a walk",
         )) {
-            val input = compose.onNodeWithText(label)
+            val input = compose.onNodeWithContentDescription(label)
             input.performScrollTo().assertIsDisplayed()
                 .assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("")))
-                .performClick()
+            val geometry = labelGeometry(label)
+            input.performClick()
             input.assertIsDisplayed()
+            assertFixedLabel(label, geometry)
             compose.onNodeWithText("Enter weight").assertDoesNotExist()
             compose.onNodeWithText("Morning check-in, after a walk...").assertDoesNotExist()
             input.performScrollTo().performTextInput(value)
@@ -404,11 +426,13 @@ class ScreenInstrumentedTest {
                 .assert(SemanticsMatcher("Editable text is '$value'") {
                     it.config[SemanticsProperties.EditableText].text == value
                 })
+            assertFixedLabel(label, geometry)
             closeSoftKeyboard()
             compose.waitForIdle()
             input.performScrollTo().assertIsDisplayed().performTextClearance()
             input.assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("")))
                 .assertIsDisplayed()
+            assertFixedLabel(label, geometry)
             closeSoftKeyboard()
         }
     }
@@ -416,17 +440,21 @@ class ScreenInstrumentedTest {
     @Test
     fun heightInputKeepsItsLabelWhileTypingAndClearing() {
         compose.setContent { StillTheme { PreferencesEditor(Preferences(), false, {}, {}) } }
-        val input = compose.onNodeWithText("Height (cm)")
+        val input = compose.onNodeWithContentDescription("Height (cm)")
         input.assertIsDisplayed()
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("")))
-            .performClick().assertIsDisplayed()
+        val geometry = labelGeometry("Height (cm)")
+        input.performClick().assertIsDisplayed()
+        assertFixedLabel("Height (cm)", geometry)
         input.performTextInput("175")
         input.assertIsDisplayed()
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("175")))
+        assertFixedLabel("Height (cm)", geometry)
         closeSoftKeyboard()
         compose.waitForIdle()
         input.assertIsDisplayed().performTextClearance()
         input.assertIsDisplayed()
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("")))
+        assertFixedLabel("Height (cm)", geometry)
     }
 }

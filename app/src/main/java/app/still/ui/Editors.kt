@@ -13,6 +13,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -68,6 +72,22 @@ private fun EditorFrame(title: String, busy: Boolean, onClose: () -> Unit, conte
 }
 
 @Composable
+private fun LabeledInput(
+    label: String,
+    modifier: Modifier = Modifier,
+    content: @Composable (Modifier) -> Unit,
+) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.testTag("input-label:$label").clearAndSetSemantics {},
+        )
+        content(Modifier.fillMaxWidth().semantics { contentDescription = label })
+    }
+}
+
+@Composable
 fun EntryEditor(
     entry: Entry?,
     unit: WeightUnit,
@@ -88,15 +108,15 @@ fun EntryEditor(
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val context = rememberDialogContext()
     EditorFrame(if (entry == null) "New check-in" else "Edit check-in", busy, onClose) {
-        OutlinedTextField(
-            value = weight, onValueChange = { weight = it; error = null },
-            label = { Text("Weight (${unit.symbol})") },
-            suffix = { Text(unit.symbol) },
-            modifier = Modifier.fillMaxWidth(),
-            textStyle = MaterialTheme.typography.headlineLarge,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            singleLine = true, enabled = !busy,
-        )
+        LabeledInput("Weight (${unit.symbol})") { inputModifier ->
+            OutlinedTextField(
+                value = weight, onValueChange = { weight = it; error = null },
+                modifier = inputModifier,
+                textStyle = MaterialTheme.typography.headlineLarge,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true, enabled = !busy,
+            )
+        }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Date", style = MaterialTheme.typography.labelLarge)
             OutlinedButton(
@@ -120,27 +140,32 @@ fun EntryEditor(
         Text("One check-in per day. You can edit earlier dates in History.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Eyebrow("OPTIONAL DETAILS")
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LabeledInput("Body fat (%)", Modifier.weight(1f)) { inputModifier ->
+                OutlinedTextField(
+                    value = fat, onValueChange = { fat = it; error = null },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true, enabled = !busy, modifier = inputModifier,
+                )
+            }
+            LabeledInput("Waist (cm)", Modifier.weight(1f)) { inputModifier ->
+                OutlinedTextField(
+                    value = waist, onValueChange = { waist = it; error = null },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true, enabled = !busy, modifier = inputModifier,
+                )
+            }
+        }
+        LabeledInput("Note") { inputModifier ->
             OutlinedTextField(
-                value = fat, onValueChange = { fat = it; error = null }, label = { Text("Body fat (%)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true, enabled = !busy, modifier = Modifier.weight(1f),
-            )
-            OutlinedTextField(
-                value = waist, onValueChange = { waist = it; error = null }, label = { Text("Waist (cm)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true, enabled = !busy, modifier = Modifier.weight(1f),
+                value = note, onValueChange = {
+                    note = it
+                    error = if (it.length > 2000) "Notes can contain at most 2000 characters." else null
+                },
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                modifier = inputModifier, minLines = 3, maxLines = 6, enabled = !busy,
+                supportingText = { Text("${note.length}/2000") }, isError = note.length > 2000,
             )
         }
-        OutlinedTextField(
-            value = note, onValueChange = {
-                note = it
-                error = if (it.length > 2000) "Notes can contain at most 2000 characters." else null
-            },
-            label = { Text("Note") },
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-            modifier = Modifier.fillMaxWidth(), minLines = 3, maxLines = 6, enabled = !busy,
-            supportingText = { Text("${note.length}/2000") }, isError = note.length > 2000,
-        )
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
         Button(
             onClick = {
@@ -192,12 +217,14 @@ fun PreferencesEditor(preferences: Preferences, busy: Boolean, onClose: () -> Un
     var error by rememberSaveable { mutableStateOf<String?>(null) }
     EditorFrame("Height", busy, onClose) {
         Text("Optional. Clear the value to remove it.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedTextField(
-            value = height, onValueChange = { height = it; error = null }, label = { Text("Height (cm)") },
-            modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !busy,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            supportingText = { Text("Used to calculate BMI.") },
-        )
+        LabeledInput("Height (cm)") { inputModifier ->
+            OutlinedTextField(
+                value = height, onValueChange = { height = it; error = null },
+                modifier = inputModifier, singleLine = true, enabled = !busy,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                supportingText = { Text("Used to calculate BMI.") },
+            )
+        }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         Button(
             onClick = {
