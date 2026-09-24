@@ -1,6 +1,5 @@
 package app.still.data
 
-import app.still.ReminderSettings
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.ByteArrayInputStream
@@ -17,8 +16,7 @@ class BackupCodecTest {
             date = LocalDate.of(2020, 1, 2), weightKg = 72.123456789,
             bodyFat = 21.123456, waistCm = 81.123456, note = "A, \"note\"\r\n\u00e9t\u00e9 \u2600 |",
         )),
-        Preferences(WeightUnit.LB, 70.987654321, 175.123456, ThemeMode.DARK),
-        ReminderSettings(true, 23, 59),
+        Preferences(WeightUnit.LB, 175.123456, ThemeMode.DARK),
         Instant.parse("2026-09-22T07:45:00Z"),
     )
 
@@ -29,7 +27,7 @@ class BackupCodecTest {
 
     @Test
     fun emptyJournalAndClearedPreferencesRoundTrip() {
-        val empty = backup.copy(entries = emptyList(), preferences = Preferences(), reminder = ReminderSettings())
+        val empty = backup.copy(entries = emptyList(), preferences = Preferences())
         assertEquals(empty, decode(BackupCodec.encode(empty)))
     }
 
@@ -42,15 +40,11 @@ class BackupCodecTest {
     @Test
     fun missingInvalidUnknownAndRepeatedSettingsAreRejected() {
         val changes = listOf(
-            "version=2" to "version=99",
+            "version=3" to "version=99",
             "format=app.still.backup" to "format=other",
             "unit=LB" to "unit=stones",
             "theme_mode=DARK" to "theme_mode=unknown",
-            "goal_kg=70.987654321" to "goal_kg=NaN",
             "height_cm=175.123456" to "height_cm=Infinity",
-            "reminder_hour=23" to "reminder_hour=24",
-            "reminder_minute=59" to "reminder_minute=-1",
-            "reminder_enabled=true" to "reminder_enabled=",
             "entry_count=1" to "entry_count=2",
             "entry_count=1" to "entry_count=0",
             "unit=LB" to "",
@@ -94,8 +88,7 @@ class BackupCodecTest {
     fun rejectsInvalidValuesBeforeWriting() {
         for (invalid in listOf(
             backup.copy(entries = listOf(backup.entries.single().copy(weightKg = Double.NaN))),
-            backup.copy(preferences = backup.preferences.copy(goalKg = -1.0)),
-            backup.copy(reminder = ReminderSettings(true, -1, 0)),
+            backup.copy(preferences = backup.preferences.copy(heightCm = -1.0)),
             backup.copy(entries = listOf(backup.entries.single().copy(date = LocalDate.now().plusDays(1)))),
         )) {
             assertThrows(IllegalArgumentException::class.java) { BackupCodec.encode(invalid) }
@@ -130,9 +123,9 @@ class BackupCodecTest {
     @Test
     fun versionOneBackupsPreserveTheirOriginalExplicitAppearance() {
         for ((old, expected) in listOf("true" to ThemeMode.DARK, "false" to ThemeMode.LIGHT)) {
-            val files = unpack()
+            val files = legacyArchive("1")
             files["manifest.properties"] = files.getValue("manifest.properties").toString(Charsets.UTF_8)
-                .replace("version=2", "version=1").replace("theme_mode=DARK", "dark_mode=$old").toByteArray()
+                .replace("dark_mode=true", "dark_mode=$old").toByteArray()
             assertEquals(backup.copy(preferences = backup.preferences.copy(themeMode = expected)), decode(zip(files)))
         }
     }
@@ -145,10 +138,53 @@ class BackupCodecTest {
                 .replace("theme_mode=DARK", replacement).toByteArray()
             assertThrows(IllegalArgumentException::class.java) { decode(zip(files)) }
         }
-        val files = unpack()
+        val files = legacyArchive("1")
         files["manifest.properties"] = files.getValue("manifest.properties").toString(Charsets.UTF_8)
-            .replace("version=2", "version=1").replace("theme_mode=DARK", "dark_mode=maybe").toByteArray()
+            .replace("dark_mode=true", "dark_mode=maybe").toByteArray()
         assertThrows(IllegalArgumentException::class.java) { decode(zip(files)) }
+    }
+
+    @Test
+    fun olderBackupsDiscardGoalsAndRemindersWithoutLosingMeasurementsOrPreferences() {
+        for (version in listOf("1", "2")) {
+            assertEquals(backup, decode(zip(legacyArchive(version))))
+        }
+        for (mode in ThemeMode.entries) {
+            val files = legacyArchive("2")
+            files["manifest.properties"] = files.getValue("manifest.properties").toString(Charsets.UTF_8)
+                .replace("theme_mode=DARK", "theme_mode=${mode.name}").toByteArray()
+            assertEquals(mode, decode(zip(files)).preferences.themeMode)
+        }
+    }
+
+    @Test
+    fun legacySettingsAreStillValidatedAndCannotLeakIntoNewBackups() {
+        for (version in listOf("1", "2")) {
+            for ((old, invalid) in listOf(
+                "goal_kg=70.0" to "goal_kg=NaN",
+                "reminder_enabled=true" to "reminder_enabled=maybe",
+                "reminder_hour=23" to "reminder_hour=24",
+                "reminder_minute=59" to "reminder_minute=-1",
+            )) {
+                val files = legacyArchive(version)
+                files["manifest.properties"] = files.getValue("manifest.properties").toString(Charsets.UTF_8)
+                    .replace(old, invalid).toByteArray()
+                assertThrows(IllegalArgumentException::class.java) { decode(zip(files)) }
+            }
+        }
+        val manifest = unpack().getValue("manifest.properties").toString(Charsets.UTF_8)
+        assertTrue(manifest.contains("version=3"))
+        assertFalse(manifest.contains("goal"))
+        assertFalse(manifest.contains("reminder"))
+        val files = unpack()
+        files["manifest.properties"] = "$manifest\ngoal_kg=70.0".toByteArray()
+        assertThrows(IllegalArgumentException::class.java) { decode(zip(files)) }
+    }
+
+    private fun legacyArchive(version: String): MutableMap<String, ByteArray> = unpack().apply {
+        var manifest = getValue("manifest.properties").toString(Charsets.UTF_8).replace("version=3", "version=$version")
+        if (version == "1") manifest = manifest.replace("theme_mode=DARK", "dark_mode=true")
+        put("manifest.properties", "$manifest\ngoal_kg=70.0\nreminder_enabled=true\nreminder_hour=23\nreminder_minute=59".toByteArray())
     }
 
     private fun decode(bytes: ByteArray) = BackupCodec.decode(ByteArrayInputStream(bytes))

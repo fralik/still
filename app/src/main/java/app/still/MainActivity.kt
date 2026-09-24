@@ -1,7 +1,5 @@
 package app.still
 
-import android.Manifest
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -23,10 +21,6 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.still.ui.*
@@ -57,38 +51,9 @@ class MainActivity : ComponentActivity() {
 private fun StillApp(model: TrackerViewModel, state: TrackerState) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var editorId by rememberSaveable { mutableStateOf<Long?>(null) }
-    var goalEditor by rememberSaveable { mutableStateOf(false) }
+    var heightEditor by rememberSaveable { mutableStateOf(false) }
     val screenStates = rememberSaveableStateHolder()
     val snackbar = remember { SnackbarHostState() }
-    val context = LocalContext.current
-    val lifecycle = LocalLifecycleOwner.current
-    var notificationsAllowed by remember { mutableStateOf(Reminders.allowed(context)) }
-    var pendingReminderHour by rememberSaveable { mutableIntStateOf(8) }
-    var pendingReminderMinute by rememberSaveable { mutableIntStateOf(0) }
-    DisposableEffect(lifecycle, context) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                notificationsAllowed = Reminders.allowed(context)
-                model.refreshReminderSchedule()
-            }
-        }
-        lifecycle.lifecycle.addObserver(observer)
-        onDispose { lifecycle.lifecycle.removeObserver(observer) }
-    }
-    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        notificationsAllowed = Reminders.allowed(context)
-        if (granted) model.saveReminder(ReminderSettings(true, pendingReminderHour, pendingReminderMinute))
-        else model.notifyUser("Notifications are off. You can enable them later in Android Settings.")
-    }
-    val setReminder: (ReminderSettings) -> Unit = { value ->
-        if (value.enabled && Build.VERSION.SDK_INT >= 33 && !Reminders.allowed(context)) {
-            pendingReminderHour = value.hour
-            pendingReminderMinute = value.minute
-            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-        } else {
-            model.saveReminder(value)
-        }
-    }
     val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) model.export(uri)
     }
@@ -110,7 +75,7 @@ private fun StillApp(model: TrackerViewModel, state: TrackerState) {
             model.clearMessage()
         }
     }
-    BackHandler(enabled = tab != 0 && editorId == null && !goalEditor) { tab = 0 }
+    BackHandler(enabled = tab != 0 && editorId == null && !heightEditor) { tab = 0 }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -155,14 +120,13 @@ private fun StillApp(model: TrackerViewModel, state: TrackerState) {
             } else {
                 screenStates.SaveableStateProvider(tab) {
                     when (tab) {
-                        0 -> HomeScreen(state, add, { editorId = it.id }, { tab = 1 }, { goalEditor = true })
+                        0 -> HomeScreen(state, add, { editorId = it.id }, { tab = 1 })
                         1 -> HistoryScreen(state, { editorId = it.id }, add)
-                        2 -> TrendsScreen(state) { goalEditor = true }
+                        2 -> TrendsScreen(state)
                         3 -> SettingsScreen(
-                            state, { model.savePreferences(it) }, { goalEditor = true },
+                            state, { model.savePreferences(it) }, { heightEditor = true },
                             { import.launch(arrayOf("text/*", "application/csv", "application/octet-stream")) },
                             { export.launch("still-${LocalDate.now()}.csv") },
-                            notificationsAllowed, setReminder,
                             onBackup = { backup.launch("still-${LocalDate.now()}.still") },
                             onRestore = { restore.launch(arrayOf("*/*")) },
                         )
@@ -182,9 +146,9 @@ private fun StillApp(model: TrackerViewModel, state: TrackerState) {
             )
         }
     }
-    if (goalEditor) {
-        PreferencesEditor(state.preferences, state.busy, { goalEditor = false }) {
-            model.savePreferences(it) { goalEditor = false }
+    if (heightEditor) {
+        PreferencesEditor(state.preferences, state.busy, { heightEditor = false }) {
+            model.savePreferences(it) { heightEditor = false }
         }
     }
     state.pendingImport?.let { pending ->
@@ -199,7 +163,7 @@ private fun StillApp(model: TrackerViewModel, state: TrackerState) {
     }
     state.pendingRestore?.let { pending ->
         RestoreBackupDialog(
-            pending, state.entries.size, state.busy, Reminders.allowed(context),
+            pending, state.entries.size, state.busy,
             model::cancelRestore, model::confirmRestore,
         )
     }

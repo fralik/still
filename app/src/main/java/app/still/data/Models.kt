@@ -38,7 +38,6 @@ enum class ThemeMode(val label: String) {
 
 data class Preferences(
     val unit: WeightUnit = WeightUnit.KG,
-    val goalKg: Double? = null,
     val heightCm: Double? = null,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
 )

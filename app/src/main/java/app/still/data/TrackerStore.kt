@@ -5,11 +5,10 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
-import app.still.ReminderSettings
 import java.time.LocalDate
 
-class TrackerStore(private val context: Context) :
-    SQLiteOpenHelper(context, "still.db", null, 3) {
+class TrackerStore(context: Context) :
+    SQLiteOpenHelper(context, "still.db", null, 4) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -29,61 +28,36 @@ class TrackerStore(private val context: Context) :
             CREATE TABLE preferences (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
                 unit TEXT NOT NULL,
-                goal_kg REAL,
                 height_cm REAL,
-                dark_mode INTEGER NOT NULL,
                 theme_mode TEXT NOT NULL
             )
             """.trimIndent(),
         )
         db.insertOrThrow("preferences", null, preferenceValues(Preferences()))
-        createReminders(db, ReminderSettings())
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        check(oldVersion in 1..2 && newVersion == 3) { "Unsupported database upgrade from $oldVersion to $newVersion." }
-        if (oldVersion == 1) {
-            val legacy = context.getSharedPreferences("reminder", Context.MODE_PRIVATE)
-            createReminders(db, ReminderSettings(
-                legacy.getBoolean("enabled", false), legacy.getInt("hour", 8), legacy.getInt("minute", 0),
-            ))
+        check(oldVersion in 1..3 && newVersion == 4) { "Unsupported database upgrade from $oldVersion to $newVersion." }
+        if (oldVersion < 3) {
+            // The old false value also represented an untouched default.
+            db.execSQL("ALTER TABLE preferences ADD COLUMN theme_mode TEXT NOT NULL DEFAULT 'SYSTEM'")
+            db.execSQL("UPDATE preferences SET theme_mode = 'DARK' WHERE dark_mode <> 0")
         }
-        // The old false value also represented an untouched default. Explicit dark selections survive.
-        db.execSQL("ALTER TABLE preferences ADD COLUMN theme_mode TEXT NOT NULL DEFAULT 'SYSTEM'")
-        db.execSQL("UPDATE preferences SET theme_mode = 'DARK' WHERE dark_mode <> 0")
-    }
-
-    private fun createReminders(db: SQLiteDatabase, reminder: ReminderSettings) {
-        reminder.validate()
+        // Rebuild for Android versions whose SQLite cannot drop individual columns.
         db.execSQL(
-            "CREATE TABLE reminder (id INTEGER PRIMARY KEY CHECK (id = 1), enabled INTEGER NOT NULL, hour INTEGER NOT NULL, minute INTEGER NOT NULL)",
+            "CREATE TABLE preferences_current (id INTEGER PRIMARY KEY CHECK (id = 1), unit TEXT NOT NULL, height_cm REAL, theme_mode TEXT NOT NULL)",
         )
-        db.insertOrThrow("reminder", null, reminderValues(reminder))
-    }
-
-    fun reminder(): ReminderSettings = readableDatabase.query(
-        "reminder", null, "id = ?", arrayOf("1"), null, null, null,
-    ).use {
-        check(it.moveToFirst()) { "Reminder settings are missing from the database." }
-        ReminderSettings(
-            it.getInt(it.getColumnIndexOrThrow("enabled")) != 0,
-            it.getInt(it.getColumnIndexOrThrow("hour")),
-            it.getInt(it.getColumnIndexOrThrow("minute")),
-        )
-    }
-
-    fun saveReminder(value: ReminderSettings) {
-        value.validate()
-        check(writableDatabase.update("reminder", reminderValues(value), "id = ?", arrayOf("1")) == 1) {
-            "Reminder settings are missing from the database."
-        }
+        db.execSQL("INSERT INTO preferences_current SELECT id, unit, height_cm, theme_mode FROM preferences")
+        db.execSQL("DROP TABLE preferences")
+        db.execSQL("ALTER TABLE preferences_current RENAME TO preferences")
+        db.execSQL("DROP TABLE IF EXISTS reminder")
     }
 
     fun fullBackup(): FullBackup {
         val db = readableDatabase
         db.beginTransaction()
         try {
-            val result = FullBackup(entries(), preferences(), reminder())
+            val result = FullBackup(entries(), preferences())
             db.setTransactionSuccessful()
             return result
         } finally {
@@ -100,8 +74,7 @@ class TrackerStore(private val context: Context) :
             db.delete("entries", null, null)
             snapshot.entries.forEach { db.insertOrThrow("entries", null, entryValues(it)) }
             savePreferences(snapshot.preferences)
-            saveReminder(snapshot.reminder)
-            val restored = FullBackup(entries(), preferences(), reminder(), snapshot.createdAt)
+            val restored = FullBackup(entries(), preferences(), snapshot.createdAt)
             db.setTransactionSuccessful()
             return restored
         } finally {
@@ -162,7 +135,6 @@ class TrackerStore(private val context: Context) :
             check(cursor.moveToFirst()) { "Preferences are missing from the database." }
             Preferences(
                 unit = WeightUnit.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("unit"))),
-                goalKg = cursor.nullableDouble("goal_kg"),
                 heightCm = cursor.nullableDouble("height_cm"),
                 themeMode = ThemeMode.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("theme_mode"))),
             )
@@ -213,17 +185,8 @@ class TrackerStore(private val context: Context) :
     private fun preferenceValues(value: Preferences) = ContentValues().apply {
         put("id", 1)
         put("unit", value.unit.name)
-        put("goal_kg", value.goalKg)
         put("height_cm", value.heightCm)
-        put("dark_mode", if (value.themeMode == ThemeMode.DARK) 1 else 0)
         put("theme_mode", value.themeMode.name)
-    }
-
-    private fun reminderValues(value: ReminderSettings) = ContentValues().apply {
-        put("id", 1)
-        put("enabled", if (value.enabled) 1 else 0)
-        put("hour", value.hour)
-        put("minute", value.minute)
     }
 
     private fun Cursor.nullableDouble(name: String): Double? {

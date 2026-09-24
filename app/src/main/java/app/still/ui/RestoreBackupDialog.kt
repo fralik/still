@@ -19,7 +19,6 @@ fun RestoreBackupDialog(
     backup: FullBackup,
     currentEntries: Int,
     busy: Boolean,
-    notificationsAllowed: Boolean,
     onCancel: () -> Unit,
     onConfirm: () -> Unit,
 ) {
@@ -39,12 +38,7 @@ fun RestoreBackupDialog(
                     Text("${backup.entries.minOf { it.date }} to ${backup.entries.maxOf { it.date }}")
                 }
                 Text("Unit: ${preferences.unit.symbol}\nTheme: ${preferences.themeMode.label}")
-                Text("Goal: ${preferences.goalKg?.let { "${number(preferences.unit.fromKg(it))} ${preferences.unit.symbol}" } ?: "Not set"}\nHeight: ${preferences.heightCm?.let { "${number(it)} cm" } ?: "Not set"}")
-                val time = java.time.LocalTime.of(backup.reminder.hour, backup.reminder.minute)
-                Text("Reminder: ${if (backup.reminder.enabled) "On" else "Off"} / $time (this phone's local time)")
-                if (backup.reminder.enabled && !notificationsAllowed) {
-                    Text("Reminders will be paused until you allow notifications in Android Settings.")
-                }
+                Text("Height: ${preferences.heightCm?.let { "${number(it)} cm" } ?: "Not set"}")
                 HorizontalDivider()
                 Text(
                     "This replaces all $currentEntries current check-ins and all settings on this device. It does not merge entries. Create a full backup first if you want to keep your current journal.",

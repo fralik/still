@@ -8,8 +8,7 @@ Jetpack Compose.
 - Daily weight entries with optional body fat, waist measurements, and notes.
 - Kilograms or pounds, with editing and backdating.
 - Weight charts, seven-day averages, and period statistics.
-- Optional goal weight and BMI reference.
-- Daily reminders at a chosen time.
+- Optional height-based BMI reference.
 - System, light, and dark themes.
 - Full backups, CSV import/export, and DroidWeight import.
 
@@ -22,9 +21,8 @@ Record a weight from **Today**, review or edit entries in **History**, and explo
 charts in **Trends**. Each date can have one entry. Body fat, waist measurements,
 and notes appear in entry details; charts show weight.
 
-In **Settings**, choose your weight unit, set a goal and height, or enable a daily
-reminder. Reminders use the phone's local time, require notification permission,
-and may be delayed by Android's battery restrictions.
+In **Settings**, choose your weight unit or enter your height for the optional
+BMI reference in **Trends**.
 
 **Settings > Theme** defaults to **System**, which follows the phone's appearance.
 Choose **Light** or **Dark** to keep a fixed theme.
@@ -33,8 +31,8 @@ Choose **Light** or **Dark** to keep a fixed theme.
 
 ### Full backup
 
-Use a `.still` backup to save all measurements and settings, including your goal,
-height, theme, and reminders.
+Use a `.still` backup to save all measurements and settings, including your
+weight unit, height, and theme.
 
 1. Open **Settings > Back up everything** and save the file.
 2. Copy it to the destination phone and install the same or a newer app version.
@@ -48,6 +46,10 @@ existing entries, use CSV import instead.
 **Backup files are not encrypted.** Store them somewhere private. Full backups
 are limited to 16 MiB, both compressed and expanded.
 
+Older backups remain importable. Measurements, units, height, and appearance are
+preserved; retired goal and reminder settings are not restored. New backups use
+format version 3 and require app version 1.4.0 or later to restore.
+
 ### Android setup transfer
 
 On supported Android 9+ devices, phone-to-phone setup can transfer the journal
@@ -56,7 +58,7 @@ depends on the devices, setup tool, and app installation/signing eligibility.
 Android 8/8.1 requires a manual backup.
 
 Keep a manual backup as a fallback. After transfer, open the app, verify your
-history, and check notification permissions before wiping the old phone.
+history before wiping the old phone.
 
 Cloud backup and ongoing multi-device synchronization are not supported.
 
@@ -87,7 +89,7 @@ value|type|date|metric|id|comment
 
 Measurements are grouped by date; when a date has multiple weights, the last
 weight row in the file is used. Times are not retained. Height records are not
-imported; enter your height in **Settings > Goal & height**. A date with body fat
+imported; enter your height in **Settings > Height**. A date with body fat
 or waist measurements but no weight must be corrected before importing.
 
 ## Build and run

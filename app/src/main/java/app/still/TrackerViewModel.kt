@@ -27,7 +27,6 @@ data class TrackerState(
     val error: String? = null,
     val message: String? = null,
     val pendingImport: List<Entry>? = null,
-    val reminder: ReminderSettings = ReminderSettings(),
     val pendingRestore: FullBackup? = null,
 )
 
@@ -42,21 +41,6 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
     fun clearMessage() = mutableState.update { it.copy(message = null) }
     fun cancelImport() = mutableState.update { it.copy(pendingImport = null) }
     fun cancelRestore() = mutableState.update { it.copy(pendingRestore = null) }
-    fun notifyUser(message: String) = mutableState.update { it.copy(message = message) }
-
-    fun refreshReminderSchedule() {
-        val current = mutableState.value
-        if (current.loading || current.busy) return
-        // Do not acquire the operation gate during onResume: a document-picker result may follow it.
-        try {
-            Reminders.schedule(getApplication(), current.reminder)
-        } catch (error: RuntimeException) {
-            Log.e("Still", "Could not refresh reminder after returning to the app", error)
-            mutableState.update {
-                it.copy(error = "Your journal is unchanged, but Android could not update the reminder. Reopen the app to retry.")
-            }
-        }
-    }
 
     private fun perform(work: suspend () -> Unit) {
         if (mutableState.value.busy) return
@@ -78,11 +62,13 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun reload() = perform {
-        val snapshot = withContext(Dispatchers.IO) { store.fullBackup() }
-        mutableState.update {
-            it.copy(entries = snapshot.entries, preferences = snapshot.preferences, reminder = snapshot.reminder, loading = false)
+        val snapshot = withContext(Dispatchers.IO) {
+            LegacyReminderCleanup.run(getApplication())
+            store.fullBackup()
         }
-        withContext(Dispatchers.IO) { Reminders.schedule(getApplication(), snapshot.reminder) }
+        mutableState.update {
+            it.copy(entries = snapshot.entries, preferences = snapshot.preferences, loading = false)
+        }
     }
 
     fun saveEntry(entry: Entry, done: () -> Unit) = perform {
@@ -107,17 +93,6 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
         withContext(Dispatchers.IO) { store.savePreferences(preferences) }
         mutableState.update { it.copy(preferences = preferences) }
         done()
-    }
-
-    fun saveReminder(reminder: ReminderSettings) = perform {
-        if (reminder.enabled) {
-            require(Reminders.allowed(getApplication())) {
-                "Notifications are disabled. Allow notifications for this app in Android Settings, then try again."
-            }
-        }
-        withContext(Dispatchers.IO) { store.saveReminder(reminder) }
-        mutableState.update { it.copy(reminder = reminder) }
-        scheduleReminder(reminder, "Reminder settings saved")
     }
 
     fun createBackup(uri: Uri) = perform {
@@ -149,26 +124,13 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
         val backup = mutableState.value.pendingRestore ?: return
         perform {
             val restored = withContext(Dispatchers.IO) { store.restoreBackup(backup) }
-            val blocked = restored.reminder.enabled && !Reminders.allowed(getApplication())
             mutableState.update {
                 it.copy(
-                    entries = restored.entries, preferences = restored.preferences, reminder = restored.reminder,
+                    entries = restored.entries, preferences = restored.preferences,
                     pendingRestore = null,
-                    message = if (blocked) "Backup restored. Reminders are paused until you allow notifications in Android Settings."
-                    else "Restored ${restored.entries.size} check-ins and all settings.",
+                    message = "Restored ${restored.entries.size} check-ins and all settings.",
                 )
             }
-            scheduleReminder(restored.reminder, "Your journal and settings were restored")
-        }
-    }
-
-    private suspend fun scheduleReminder(reminder: ReminderSettings, completed: String) {
-        try {
-            withContext(Dispatchers.IO) { Reminders.schedule(getApplication(), reminder) }
-        } catch (cancelled: kotlinx.coroutines.CancellationException) {
-            throw cancelled
-        } catch (error: RuntimeException) {
-            throw IOException("$completed, but Android could not update the reminder. Reopen the app to retry.", error)
         }
     }
 

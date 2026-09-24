@@ -31,21 +31,7 @@ object Metrics {
         return weightKg / (heightMetres * heightMetres)
     }
 
-    fun progress(startKg: Double, currentKg: Double, goalKg: Double): Double {
-        require(listOf(startKg, currentKg, goalKg).all { it.isFinite() && it > 0 }) {
-            "Progress weights must be finite and positive."
-        }
-        // A maintenance target has no distance to travel: only being at the target is complete.
-        if (startKg == goalKg) return if (currentKg == goalKg) 1.0 else 0.0
-        return ((currentKg - startKg) / (goalKg - startKg)).coerceIn(0.0, 1.0)
-    }
-
     internal fun validatePreferences(value: Preferences) {
-        value.goalKg?.let {
-            require(it.isFinite() && it > 0 && it <= 650) {
-                "Goal must be finite, greater than 0 and at most 650 kg."
-            }
-        }
         value.heightCm?.let {
             require(it.isFinite() && it > 0 && it <= 300) {
                 "Height must be finite, greater than 0 and at most 300 cm."

@@ -32,19 +32,6 @@ class MetricsTest {
     }
 
     @Test
-    fun progressSupportsLossGainMaintenanceAndOvershoot() {
-        assertEquals(0.5, Metrics.progress(100.0, 90.0, 80.0), 0.0)
-        assertEquals(0.5, Metrics.progress(60.0, 70.0, 80.0), 0.0)
-        assertEquals(0.0, Metrics.progress(100.0, 110.0, 80.0), 0.0)
-        assertEquals(0.0, Metrics.progress(60.0, 50.0, 80.0), 0.0)
-        assertEquals(1.0, Metrics.progress(100.0, 70.0, 80.0), 0.0)
-        assertEquals(1.0, Metrics.progress(60.0, 90.0, 80.0), 0.0)
-        assertEquals(1.0, Metrics.progress(80.0, 80.0, 80.0), 0.0)
-        assertEquals(0.0, Metrics.progress(80.0, 81.0, 80.0), 0.0)
-        assertThrows(IllegalArgumentException::class.java) { Metrics.progress(80.0, Double.NaN, 70.0) }
-    }
-
-    @Test
     fun entryValidationAcceptsInclusiveUpperBoundsAndToday() {
         Metrics.validate(
             entry.copy(
@@ -75,17 +62,11 @@ class MetricsTest {
     @Test
     fun preferencesValidation() {
         Metrics.validatePreferences(Preferences())
-        Metrics.validatePreferences(Preferences(goalKg = 650.0, heightCm = 300.0))
+        Metrics.validatePreferences(Preferences(heightCm = 300.0))
         for (value in listOf(0.0, -1.0, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY)) {
-            assertThrows(IllegalArgumentException::class.java) {
-                Metrics.validatePreferences(Preferences(goalKg = value))
-            }
             assertThrows(IllegalArgumentException::class.java) {
                 Metrics.validatePreferences(Preferences(heightCm = value))
             }
-        }
-        assertThrows(IllegalArgumentException::class.java) {
-            Metrics.validatePreferences(Preferences(goalKg = 650.1))
         }
         assertThrows(IllegalArgumentException::class.java) {
             Metrics.validatePreferences(Preferences(heightCm = 300.1))

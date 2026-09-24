@@ -1,6 +1,5 @@
 package app.still.data
 
-import app.still.ReminderSettings
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
@@ -16,7 +15,6 @@ import java.util.zip.ZipOutputStream
 data class FullBackup(
     val entries: List<Entry>,
     val preferences: Preferences,
-    val reminder: ReminderSettings,
     val createdAt: Instant = Instant.now(),
 ) {
     fun validate() {
@@ -26,7 +24,6 @@ data class FullBackup(
             "The backup contains multiple check-ins for the same date."
         }
         Metrics.validatePreferences(preferences)
-        reminder.validate()
     }
 }
 
@@ -36,9 +33,9 @@ object BackupCodec {
     private const val MANIFEST = "manifest.properties"
     private const val ENTRIES = "entries.csv"
     private val keys = setOf(
-        "format", "version", "created_at", "entry_count", "unit", "goal_kg", "height_cm",
-        "theme_mode", "reminder_enabled", "reminder_hour", "reminder_minute",
+        "format", "version", "created_at", "entry_count", "unit", "height_cm", "theme_mode",
     )
+    private val retiredKeys = setOf("goal_kg", "reminder_enabled", "reminder_hour", "reminder_minute")
 
     fun encode(backup: FullBackup): ByteArray {
         backup.validate()
@@ -49,16 +46,12 @@ object BackupCodec {
         val preferences = backup.preferences
         val manifest = """
             format=app.still.backup
-            version=2
+            version=3
             created_at=${backup.createdAt}
             entry_count=${backup.entries.size}
             unit=${preferences.unit.name}
-            goal_kg=${preferences.goalKg ?: ""}
             height_cm=${preferences.heightCm ?: ""}
             theme_mode=${preferences.themeMode.name}
-            reminder_enabled=${backup.reminder.enabled}
-            reminder_hour=${backup.reminder.hour}
-            reminder_minute=${backup.reminder.minute}
         """.trimIndent().toByteArray(Charsets.UTF_8)
         require(csv.size.toLong() + manifest.size <= MAX_BYTES) { "The journal exceeds the 16 MB backup limit." }
         val output = ByteArrayOutputStream()
@@ -103,10 +96,14 @@ object BackupCodec {
         properties.load(StringReader(utf8(files.getValue(MANIFEST))))
         require(properties.getProperty("format") == "app.still.backup") { "Unsupported backup format. Choose a .still file." }
         val version = properties.getProperty("version")
-        require(version in setOf("1", "2")) {
+        require(version in setOf("1", "2", "3")) {
             "Unsupported backup version. Update the app before restoring this file."
         }
-        val expectedKeys = if (version == "1") keys - "theme_mode" + "dark_mode" else keys
+        val expectedKeys = when (version) {
+            "1" -> keys - "theme_mode" + "dark_mode" + retiredKeys
+            "2" -> keys + retiredKeys
+            else -> keys
+        }
         require(properties.stringPropertyNames() == expectedKeys) { "The backup has missing or unrecognized settings." }
         fun field(name: String): String = properties.getProperty(name)
         fun boolean(name: String): Boolean = field(name).toBooleanStrictOrNull()
@@ -116,6 +113,16 @@ object BackupCodec {
         fun optionalNumber(name: String): Double? = field(name).let {
             if (it.isEmpty()) null else it.toDoubleOrNull()
                 ?: throw IllegalArgumentException("Invalid backup setting: $name.")
+        }
+        if (version != "3") {
+            // Validate older archives, but never restore retired features.
+            optionalNumber("goal_kg")?.let {
+                require(it.isFinite() && it > 0 && it <= 650) { "Invalid backup setting: goal_kg." }
+            }
+            boolean("reminder_enabled")
+            require(integer("reminder_hour") in 0..23 && integer("reminder_minute") in 0..59) {
+                "Invalid backup reminder time."
+            }
         }
         val csv = utf8(files.getValue(ENTRIES))
         require(csv.startsWith("date,weight_kg,body_fat_percent,waist_cm,note")) {
@@ -134,8 +141,7 @@ object BackupCodec {
         }
         return FullBackup(
             entries,
-            Preferences(unit, optionalNumber("goal_kg"), optionalNumber("height_cm"), theme),
-            ReminderSettings(boolean("reminder_enabled"), integer("reminder_hour"), integer("reminder_minute")),
+            Preferences(unit, optionalNumber("height_cm"), theme),
             Instant.parse(field("created_at")),
         ).also(FullBackup::validate)
     }

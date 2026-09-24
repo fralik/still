@@ -19,6 +19,7 @@ import app.still.ui.HomeScreen
 import app.still.ui.PreferencesEditor
 import app.still.ui.SettingsScreen
 import app.still.ui.StillTheme
+import app.still.ui.TrendsScreen
 import app.still.ui.number
 import org.junit.Assert.*
 import org.junit.Rule
@@ -34,7 +35,7 @@ class ScreenInstrumentedTest {
         compose.setContent {
             StillTheme {
                 Surface {
-                    HomeScreen(TrackerState(loading = false), { clicked = true }, {}, {}, {})
+                    HomeScreen(TrackerState(loading = false), { clicked = true }, {}, {})
                 }
             }
         }
@@ -53,7 +54,7 @@ class ScreenInstrumentedTest {
         )
         compose.setContent {
             StillTheme {
-                HomeScreen(TrackerState(entries, loading = false), {}, {}, {}, {})
+                HomeScreen(TrackerState(entries, loading = false), {}, {}, {})
             }
         }
         compose.onNodeWithText(number(72.4)).assertIsDisplayed()
@@ -122,21 +123,21 @@ class ScreenInstrumentedTest {
     }
 
     @Test
-    fun optionalGoalCanBeRemoved() {
+    fun optionalHeightCanBeRemovedWithoutChangingOtherPreferences() {
         var saved: Preferences? = null
         compose.setContent {
             StillTheme {
-                PreferencesEditor(Preferences(goalKg = 70.0, heightCm = 175.0), false, {}, { saved = it })
+                PreferencesEditor(Preferences(WeightUnit.LB, 175.0, ThemeMode.DARK), false, {}, { saved = it })
             }
         }
-        compose.onNodeWithText("Goal weight (kg)").performTextClearance()
+        compose.onNodeWithText("Goal", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Height (cm)").performTextClearance()
         closeSoftKeyboard()
         compose.waitForIdle()
         compose.onNodeWithText("Save preferences").performScrollTo().performClick()
         compose.runOnIdle {
             assertNotNull(saved)
-            assertNull(saved!!.goalKg)
-            assertEquals(175.0, saved!!.heightCm!!, 0.0)
+            assertEquals(Preferences(WeightUnit.LB, null, ThemeMode.DARK), saved)
         }
     }
 
@@ -154,8 +155,8 @@ class ScreenInstrumentedTest {
     }
 
     @Test
-    fun changingDisplayUnitsKeepsGoalInKilograms() {
-        val preferences = Preferences(goalKg = 70.0)
+    fun changingDisplayUnitsKeepsHeightInCentimeters() {
+        val preferences = Preferences(heightCm = 175.0)
         var updated: Preferences? = null
         compose.setContent {
             StillTheme {
@@ -165,7 +166,7 @@ class ScreenInstrumentedTest {
         compose.onNodeWithText("Pounds / lb").performClick()
         compose.runOnIdle {
             assertEquals(WeightUnit.LB, updated!!.unit)
-            assertEquals(70.0, updated!!.goalKg!!, 0.0)
+            assertEquals(175.0, updated!!.heightCm!!, 0.0)
         }
     }
 
@@ -233,8 +234,9 @@ class ScreenInstrumentedTest {
         compose.onNodeWithText("Theme").assertExists()
         compose.onNodeWithText("System").assertIsSelected()
         compose.onNodeWithText("Made for you.").assertDoesNotExist()
-        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Daily reminder"))
-        compose.onNodeWithText("Daily reminder").assertIsDisplayed()
+        compose.onNodeWithText("Height").assertExists()
+        compose.onNodeWithText("Daily reminder").assertDoesNotExist()
+        compose.onNodeWithText("Goal & height").assertDoesNotExist()
         compose.onNodeWithText("A gentle nudge").assertDoesNotExist()
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Backup files are not encrypted.", substring = true))
         compose.onNodeWithText("Backup files are not encrypted.", substring = true).assertIsDisplayed()
@@ -260,7 +262,7 @@ class ScreenInstrumentedTest {
 
     @Test
     fun themeSelectorSupportsSystemAndBothExplicitOverrides() {
-        val original = Preferences(WeightUnit.LB, 70.0, 175.0)
+        val original = Preferences(WeightUnit.LB, 175.0)
         var preferences by mutableStateOf(original)
         compose.setContent {
             StillTheme {
@@ -282,13 +284,14 @@ class ScreenInstrumentedTest {
         compose.setContent {
             StillTheme {
                 RestoreBackupDialog(
-                    FullBackup(emptyList(), Preferences(), ReminderSettings(true, 8, 15)),
-                    12, false, false, { cancelled = true }, { restored = true },
+                    FullBackup(emptyList(), Preferences()),
+                    12, false, { cancelled = true }, { restored = true },
                 )
             }
         }
         compose.onNodeWithText("This replaces all 12 current check-ins", substring = true).assertExists()
-        compose.onNodeWithText("Reminders will be paused", substring = true).assertExists()
+        compose.onNodeWithText("Reminder", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Goal:", substring = true).assertDoesNotExist()
         compose.runOnIdle { assertFalse(restored) }
         compose.onNodeWithText("Cancel").performClick()
         compose.runOnIdle {
@@ -304,12 +307,50 @@ class ScreenInstrumentedTest {
         compose.setContent {
             StillTheme {
                 RestoreBackupDialog(
-                    FullBackup(emptyList(), Preferences(), ReminderSettings()),
-                    0, true, true, {}, {},
+                    FullBackup(emptyList(), Preferences()),
+                    0, true, {}, {},
                 )
             }
         }
         compose.onNodeWithText("Restoring...").assertIsNotEnabled()
         compose.onNodeWithText("Cancel").assertIsNotEnabled()
+    }
+
+    @Test
+    fun homeFlowsDirectlyFromChartToRecentEntriesWithoutGoalCard() {
+        compose.setContent {
+            StillTheme { HomeScreen(TrackerState(listOf(Entry(1, LocalDate.now(), 72.0)), loading = false), {}, {}, {}) }
+        }
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Recent check-ins"))
+        compose.onNodeWithText("Recent check-ins").assertIsDisplayed()
+        compose.onNodeWithText("Goal weight").assertDoesNotExist()
+        compose.onNodeWithText("Set goal").assertDoesNotExist()
+    }
+
+    @Test
+    fun trendsRetainsBmiWithoutGoalCard() {
+        compose.setContent {
+            StillTheme {
+                TrendsScreen(TrackerState(listOf(Entry(1, LocalDate.now(), 81.0)), Preferences(heightCm = 180.0), loading = false))
+            }
+        }
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Body mass index (BMI)"))
+        compose.onNodeWithText("Body mass index (BMI)").assertIsDisplayed()
+        compose.onNodeWithText(number(25.0)).assertExists()
+        compose.onNodeWithText("Goal weight").assertDoesNotExist()
+    }
+
+    @Test
+    fun heightEditorRejectsInvalidValuesAndKeepsUnchangedPrecision() {
+        val original = Preferences(heightCm = 175.123456)
+        var saved: Preferences? = null
+        compose.setContent { StillTheme { PreferencesEditor(original, false, {}, { saved = it }) } }
+        compose.onNodeWithText("Save preferences").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(original, saved); saved = null }
+        compose.onNodeWithText("Height (cm)").performTextReplacement("301")
+        closeSoftKeyboard()
+        compose.onNodeWithText("Save preferences").performScrollTo().performClick()
+        compose.onNodeWithText("Height must be at most 300 cm.").assertExists()
+        compose.runOnIdle { assertNull(saved) }
     }
 }

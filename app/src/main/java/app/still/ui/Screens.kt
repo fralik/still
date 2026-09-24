@@ -1,8 +1,5 @@
 package app.still.ui
 
-import android.app.TimePickerDialog
-import android.text.format.DateFormat
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,22 +7,18 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.still.TrackerState
 import app.still.BuildConfig
-import app.still.ReminderSettings
 import app.still.data.Entry
 import app.still.data.Metrics
 import app.still.data.Preferences
@@ -35,7 +28,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun HomeScreen(state: TrackerState, onAdd: () -> Unit, onEdit: (Entry) -> Unit, onHistory: () -> Unit, onGoal: () -> Unit) {
+fun HomeScreen(state: TrackerState, onAdd: () -> Unit, onEdit: (Entry) -> Unit, onHistory: () -> Unit) {
     val unit = state.preferences.unit
     val hero = LocalHeroColors.current
     val entries = state.entries
@@ -113,7 +106,6 @@ fun HomeScreen(state: TrackerState, onAdd: () -> Unit, onEdit: (Entry) -> Unit, 
                 }
             }
         }
-        item { GoalCard(entries, state.preferences, onGoal) }
         if (entries.isNotEmpty()) {
             item {
                 Panel {
@@ -126,41 +118,6 @@ fun HomeScreen(state: TrackerState, onAdd: () -> Unit, onEdit: (Entry) -> Unit, 
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun GoalCard(entries: List<Entry>, preferences: Preferences, onGoal: () -> Unit) {
-    val goal = preferences.goalKg
-    val current = entries.firstOrNull()?.weightKg
-    val start = entries.lastOrNull()?.weightKg
-    Panel {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            IconBadge(Icons.Outlined.Flag)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Goal weight", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    if (goal == null) "No goal set" else "Target: ${number(preferences.unit.fromKg(goal))} ${preferences.unit.symbol}",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        if (goal != null && current != null && start != null) {
-            val progress = Metrics.progress(start, current, goal).toFloat()
-            LinearProgressIndicator(
-                progress = { progress }, modifier = Modifier.fillMaxWidth().height(7.dp),
-                color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceVariant,
-            )
-            Text(
-                "${number(preferences.unit.fromKg(kotlin.math.abs(current - goal)))} ${preferences.unit.symbol} from your target",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        TextButton(onClick = onGoal, contentPadding = PaddingValues(0.dp)) {
-            Text(if (goal == null) "Set goal" else "Edit goal")
-            Spacer(Modifier.width(8.dp))
-            Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(16.dp))
         }
     }
 }
@@ -204,7 +161,7 @@ fun HistoryScreen(state: TrackerState, onEdit: (Entry) -> Unit, onAdd: () -> Uni
 }
 
 @Composable
-fun TrendsScreen(state: TrackerState, onGoal: () -> Unit) {
+fun TrendsScreen(state: TrackerState) {
     var period by rememberSaveable { mutableIntStateOf(90) }
     val entries = state.entries
     val unit = state.preferences.unit
@@ -251,7 +208,6 @@ fun TrendsScreen(state: TrackerState, onGoal: () -> Unit) {
                 }
             }
         }
-        item { GoalCard(entries, state.preferences, onGoal) }
         val height = state.preferences.heightCm
         val latest = entries.firstOrNull()
         if (height != null && latest != null) {
@@ -271,16 +227,13 @@ fun TrendsScreen(state: TrackerState, onGoal: () -> Unit) {
 fun SettingsScreen(
     state: TrackerState,
     onPreferences: (Preferences) -> Unit,
-    onGoal: () -> Unit,
+    onHeight: () -> Unit,
     onImport: () -> Unit,
     onExport: () -> Unit,
-    notificationsAllowed: Boolean = true,
-    onReminder: (ReminderSettings) -> Unit = {},
     onBackup: () -> Unit = {},
     onRestore: () -> Unit = {},
 ) {
     val preferences = state.preferences
-    val context = rememberDialogContext()
     var dataToolsExpanded by rememberSaveable { mutableStateOf(false) }
     LazyColumn(
         Modifier.fillMaxSize(), contentPadding = PaddingValues(22.dp, 16.dp, 22.dp, 30.dp),
@@ -306,10 +259,10 @@ fun SettingsScreen(
                 }
                 Text("Height and waist use centimeters.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                TextButton(onClick = onGoal, enabled = !state.busy, contentPadding = PaddingValues(0.dp)) {
+                TextButton(onClick = onHeight, enabled = !state.busy, contentPadding = PaddingValues(0.dp)) {
                     Icon(Icons.Outlined.Tune, null, Modifier.size(21.dp))
                     Spacer(Modifier.width(10.dp))
-                    Text("Goal & height")
+                    Text("Height")
                     Spacer(Modifier.weight(1f))
                     Icon(Icons.Outlined.ChevronRight, null)
                 }
@@ -327,37 +280,6 @@ fun SettingsScreen(
                 }
                 if (preferences.themeMode == ThemeMode.SYSTEM) {
                     Text("Follows the phone's light or dark theme.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-        item {
-            Panel {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Daily reminder", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                    Switch(
-                        checked = state.reminder.enabled, enabled = !state.busy,
-                        onCheckedChange = { onReminder(state.reminder.copy(enabled = it)) },
-                    )
-                }
-                OutlinedButton(
-                    onClick = {
-                        TimePickerDialog(context, { _, hour, minute ->
-                            onReminder(state.reminder.copy(hour = hour, minute = minute))
-                        }, state.reminder.hour, state.reminder.minute, DateFormat.is24HourFormat(context)).show()
-                    },
-                    enabled = !state.busy,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                ) {
-                    Icon(Icons.Outlined.Schedule, null, Modifier.size(19.dp))
-                    Spacer(Modifier.width(9.dp))
-                    Text("Around ${java.time.LocalTime.of(state.reminder.hour, state.reminder.minute).format(DateTimeFormatter.ofPattern("HH:mm"))}")
-                }
-                if (state.reminder.enabled) {
-                    Text(
-                        if (!notificationsAllowed) "Allow notifications in Android Settings to receive reminders."
-                        else "Battery settings may delay delivery.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall,
-                    )
                 }
             }
         }

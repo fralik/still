@@ -11,7 +11,7 @@ class TransferPolicyTest {
         "root", "file", "database", "sharedpref", "external",
         "device_root", "device_file", "device_database", "device_sharedpref",
     )
-    private val transferFiles = setOf("database" to "still.db", "sharedpref" to "reminder.xml")
+    private val transferFiles = setOf("database" to "still.db")
 
     @Test
     fun manifestParticipatesInTransferAndReferencesBothRuleFormats() {
@@ -30,11 +30,11 @@ class TransferPolicyTest {
     }
 
     @Test
-    fun modernTransferAllowsOnlyJournalAndLegacyReminderSettings() {
+    fun modernTransferAllowsOnlyJournal() {
         val root = parse("res/xml/data_extraction_rules.xml")
         val transfer = root.getElementsByTagName("device-transfer").item(0) as Element
         assertEquals(transferFiles, includes(transfer))
-        assertEquals(2, transfer.getElementsByTagName("include").length)
+        assertEquals(1, transfer.getElementsByTagName("include").length)
         assertEquals(0, transfer.getElementsByTagName("exclude").length)
     }
 
@@ -65,6 +65,13 @@ class TransferPolicyTest {
             exclude.getAttribute("domain")
         }.toSet()
         assertEquals(allDomains, domains)
+    }
+
+    @Test
+    fun manifestHasNoReminderPermissionsOrReceivers() {
+        val root = parse("AndroidManifest.xml")
+        assertEquals(0, root.getElementsByTagName("uses-permission").length)
+        assertEquals(0, root.getElementsByTagName("receiver").length)
     }
 
     private fun includes(element: Element): Set<Pair<String, String>> {

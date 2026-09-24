@@ -13,7 +13,5 @@
     </cloud-backup>
     <device-transfer>
         <include domain="database" path="still.db" />
-        <!-- Preserve pre-migration reminders if the updated app has not been opened yet. -->
-        <include domain="sharedpref" path="reminder.xml" />
     </device-transfer>
 </data-extraction-rules>

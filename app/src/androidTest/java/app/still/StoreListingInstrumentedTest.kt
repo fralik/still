@@ -18,7 +18,6 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.platform.app.InstrumentationRegistry
 import app.still.data.Entry
-import app.still.data.Preferences
 import app.still.ui.HistoryScreen
 import app.still.ui.HomeScreen
 import app.still.ui.StillTheme
@@ -50,16 +49,16 @@ class StoreListingInstrumentedTest {
                 note = if (day % 7 == 0) "Morning check-in" else "",
             )
         }
-        val state = TrackerState(entries, Preferences(goalKg = 70.0), loading = false)
+        val state = TrackerState(entries, loading = false)
         var screen by mutableIntStateOf(0)
         compose.setContent {
             StillTheme(dark = screen == 3) {
                 Box(Modifier.fillMaxSize().safeDrawingPadding()) {
                     Surface(Modifier.fillMaxSize().testTag("store-screen"), color = MaterialTheme.colorScheme.background) {
                         when (screen) {
-                            1 -> TrendsScreen(state) {}
+                            1 -> TrendsScreen(state)
                             2 -> HistoryScreen(state, {}, {})
-                            else -> HomeScreen(state, {}, {}, {}, {})
+                            else -> HomeScreen(state, {}, {}, {})
                         }
                     }
                 }

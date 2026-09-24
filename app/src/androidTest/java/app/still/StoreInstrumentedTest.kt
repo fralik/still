@@ -48,12 +48,12 @@ class StoreInstrumentedTest {
         val saved = store.entries().single()
         assertTrue(saved.id > 0)
         store.saveEntry(saved.copy(weightKg = 72.1, note = "Edited"))
-        store.savePreferences(Preferences(WeightUnit.LB, 70.0, 175.0, ThemeMode.DARK))
+        store.savePreferences(Preferences(WeightUnit.LB, 175.0, ThemeMode.DARK))
         store.close()
         store = TrackerStore(context)
         assertEquals(72.1, store.entries().single().weightKg, 0.00001)
         assertEquals("Edited", store.entries().single().note)
-        assertEquals(Preferences(WeightUnit.LB, 70.0, 175.0, ThemeMode.DARK), store.preferences())
+        assertEquals(Preferences(WeightUnit.LB, 175.0, ThemeMode.DARK), store.preferences())
         store.deleteEntry(saved.id)
         assertTrue(store.entries().isEmpty())
     }
@@ -97,8 +97,7 @@ class StoreInstrumentedTest {
     @Test
     fun fullBackupMovesEverySettingAndEntryToAnotherStore() {
         store.saveEntry(Entry(date = LocalDate.now(), weightKg = 72.123456, bodyFat = 21.5, waistCm = 81.2, note = "First\nsecond"))
-        store.savePreferences(Preferences(WeightUnit.LB, 70.0, 175.0, ThemeMode.DARK))
-        store.saveReminder(ReminderSettings(true, 19, 35))
+        store.savePreferences(Preferences(WeightUnit.LB, 175.0, ThemeMode.DARK))
         val original = store.fullBackup()
         val backup = BackupCodec.decode(BackupCodec.encode(original).inputStream())
         val destination = IsolatedContext(InstrumentationRegistry.getInstrumentation().targetContext)
@@ -111,7 +110,6 @@ class StoreInstrumentedTest {
             TrackerStore(destination).use { target ->
                 assertEquals(original.entries.map { it.copy(id = 0) }, target.entries().map { it.copy(id = 0) })
                 assertEquals(original.preferences, target.preferences())
-                assertEquals(original.reminder, target.reminder())
             }
             assertEquals(original.entries, store.entries())
         } finally {
@@ -122,8 +120,7 @@ class StoreInstrumentedTest {
     @Test
     fun fullBackupRoundTripsThroughContentResolverStreams() {
         store.saveEntry(Entry(date = LocalDate.of(2020, 1, 2), weightKg = 72.5, note = "Exported note"))
-        store.savePreferences(Preferences(WeightUnit.LB, 70.0, 175.0, ThemeMode.DARK))
-        store.saveReminder(ReminderSettings(true, 20, 45))
+        store.savePreferences(Preferences(WeightUnit.LB, 175.0, ThemeMode.DARK))
         val snapshot = store.fullBackup()
         val file = File.createTempFile("still-backup-test-", ".still", context.cacheDir)
         try {
@@ -140,18 +137,15 @@ class StoreInstrumentedTest {
     @Test
     fun emptyBackupExplicitlyClearsJournalAndResetsAllSettings() {
         store.saveEntry(Entry(date = LocalDate.now(), weightKg = 72.0))
-        store.savePreferences(Preferences(WeightUnit.LB, 70.0, 175.0, ThemeMode.DARK))
-        store.saveReminder(ReminderSettings(true, 19, 35))
-        store.restoreBackup(FullBackup(emptyList(), Preferences(), ReminderSettings()))
+        store.savePreferences(Preferences(WeightUnit.LB, 175.0, ThemeMode.DARK))
+        store.restoreBackup(FullBackup(emptyList(), Preferences()))
         assertTrue(store.entries().isEmpty())
         assertEquals(Preferences(), store.preferences())
-        assertEquals(ReminderSettings(), store.reminder())
     }
 
     @Test
     fun invalidBackupCannotChangeAnyExistingData() {
         store.saveEntry(Entry(date = LocalDate.now(), weightKg = 72.0))
-        store.saveReminder(ReminderSettings(true, 18, 20))
         val original = store.fullBackup()
         val invalid = original.copy(preferences = Preferences(heightCm = -1.0))
         assertThrows(IllegalArgumentException::class.java) { store.restoreBackup(invalid) }
@@ -159,52 +153,48 @@ class StoreInstrumentedTest {
         assertThrows(IllegalArgumentException::class.java) { store.restoreBackup(duplicate) }
         assertEquals(original.entries, store.entries())
         assertEquals(original.preferences, store.preferences())
-        assertEquals(original.reminder, store.reminder())
     }
 
     @Test
-    fun databaseFailureRollsBackEntriesPreferencesAndReminderTogether() {
+    fun databaseFailureRollsBackEntriesAndPreferencesTogether() {
         store.saveEntry(Entry(date = LocalDate.now(), weightKg = 72.0))
         val original = store.fullBackup()
         val replacement = FullBackup(
             listOf(Entry(date = LocalDate.now().minusDays(1), weightKg = 90.0)),
-            Preferences(WeightUnit.LB, 70.0, 175.0, ThemeMode.DARK),
-            ReminderSettings(true, 17, 30),
+            Preferences(WeightUnit.LB, 175.0, ThemeMode.DARK),
         )
         store.writableDatabase.execSQL(
-            "CREATE TRIGGER fail_restore BEFORE UPDATE ON reminder BEGIN SELECT RAISE(ABORT, 'Injected failure'); END",
+            "CREATE TRIGGER fail_restore BEFORE UPDATE ON preferences BEGIN SELECT RAISE(ABORT, 'Injected failure'); END",
         )
         assertThrows(android.database.sqlite.SQLiteException::class.java) { store.restoreBackup(replacement) }
         assertEquals(original.entries, store.entries())
         assertEquals(original.preferences, store.preferences())
-        assertEquals(original.reminder, store.reminder())
     }
 
     @Test
-    fun upgradesVersionOneWithoutLosingLegacyEntriesOrReminderSettings() {
+    fun upgradesVersionOneWithoutLosingLegacyEntriesOrHeight() {
         createLegacyDatabase(1, true)
         assertTrue(context.getSharedPreferences("reminder", Context.MODE_PRIVATE).edit()
             .putBoolean("enabled", true).putInt("hour", 22).putInt("minute", 45).commit())
         store = TrackerStore(context)
         assertEquals("Existing journal", store.entries().single().note)
         assertEquals(42L, store.entries().single().id)
-        assertEquals(Preferences(WeightUnit.LB, 70.0, 175.0, ThemeMode.DARK), store.preferences())
-        assertEquals(ReminderSettings(true, 22, 45), store.reminder())
-        store.saveReminder(ReminderSettings(false, 7, 15))
+        assertEquals(Preferences(WeightUnit.LB, 175.0, ThemeMode.DARK), store.preferences())
+        assertRetiredColumnsAndTableRemoved()
         store.close()
         store = TrackerStore(context)
-        assertEquals(ReminderSettings(false, 7, 15), store.reminder())
-        assertEquals(3, store.readableDatabase.version)
+        assertEquals(Preferences(WeightUnit.LB, 175.0, ThemeMode.DARK), store.preferences())
+        assertEquals(4, store.readableDatabase.version)
     }
 
     @Test
     fun versionTwoDefaultBecomesSystemWithoutChangingOtherSettings() {
         createLegacyDatabase(2, false)
         store = TrackerStore(context)
-        assertEquals(Preferences(WeightUnit.LB, 70.0, 175.0, ThemeMode.SYSTEM), store.preferences())
-        assertEquals(ReminderSettings(true, 22, 45), store.reminder())
+        assertEquals(Preferences(WeightUnit.LB, 175.0, ThemeMode.SYSTEM), store.preferences())
+        assertRetiredColumnsAndTableRemoved()
         assertEquals("Existing journal", store.entries().single().note)
-        assertEquals(3, store.readableDatabase.version)
+        assertEquals(4, store.readableDatabase.version)
     }
 
     @Test
@@ -212,7 +202,7 @@ class StoreInstrumentedTest {
         createLegacyDatabase(2, true)
         store = TrackerStore(context)
         assertEquals(ThemeMode.DARK, store.preferences().themeMode)
-        assertEquals(ReminderSettings(true, 22, 45), store.reminder())
+        assertRetiredColumnsAndTableRemoved()
     }
 
     @Test
@@ -220,12 +210,13 @@ class StoreInstrumentedTest {
         createLegacyDatabase(1, false)
         store = TrackerStore(context)
         assertEquals(ThemeMode.SYSTEM, store.preferences().themeMode)
-        assertEquals(ReminderSettings(), store.reminder())
+        assertRetiredColumnsAndTableRemoved()
     }
 
     @Test
     fun themeDefaultsToSystemAndAllOverridesSurviveReopeningAndRestoration() {
         assertEquals(ThemeMode.SYSTEM, store.preferences().themeMode)
+        assertRetiredColumnsAndTableRemoved()
         for (mode in ThemeMode.entries) {
             store.savePreferences(Preferences(themeMode = mode))
             val snapshot = store.fullBackup()
@@ -238,6 +229,32 @@ class StoreInstrumentedTest {
         }
     }
 
+    @Test
+    fun versionThreePreservesExplicitThemeAndMeasurementsButDropsRetiredSettings() {
+        createLegacyDatabase(3, false)
+        store = TrackerStore(context)
+        assertEquals(Preferences(WeightUnit.LB, 175.0, ThemeMode.LIGHT), store.preferences())
+        val entry = store.entries().single()
+        assertEquals(42L, entry.id)
+        assertEquals(72.4, entry.weightKg, 0.0)
+        assertEquals(21.5, entry.bodyFat!!, 0.0)
+        assertEquals(81.2, entry.waistCm!!, 0.0)
+        assertRetiredColumnsAndTableRemoved()
+    }
+
+    private fun assertRetiredColumnsAndTableRemoved() {
+        store.readableDatabase.rawQuery("PRAGMA table_info(preferences)", null).use { cursor ->
+            val columns = buildSet {
+                while (cursor.moveToNext()) add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
+            }
+            assertEquals(setOf("id", "unit", "height_cm", "theme_mode"), columns)
+        }
+        store.readableDatabase.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='reminder'", null).use {
+            assertFalse(it.moveToFirst())
+        }
+        assertEquals(4, store.readableDatabase.version)
+    }
+
     private fun createLegacyDatabase(version: Int, dark: Boolean) {
         store.close()
         context.openOrCreateDatabase("still.db", Context.MODE_PRIVATE, null).use { db ->
@@ -245,9 +262,12 @@ class StoreInstrumentedTest {
             db.execSQL("CREATE TABLE preferences (id INTEGER PRIMARY KEY CHECK (id = 1), unit TEXT NOT NULL, goal_kg REAL, height_cm REAL, dark_mode INTEGER NOT NULL)")
             db.execSQL("INSERT INTO entries VALUES (42, '2020-01-02', 72.4, 21.5, 81.2, 'Existing journal')")
             db.execSQL("INSERT INTO preferences VALUES (1, 'LB', 70.0, 175.0, ?)", arrayOf(if (dark) 1 else 0))
-            if (version == 2) {
+            if (version >= 2) {
                 db.execSQL("CREATE TABLE reminder (id INTEGER PRIMARY KEY CHECK (id = 1), enabled INTEGER NOT NULL, hour INTEGER NOT NULL, minute INTEGER NOT NULL)")
                 db.execSQL("INSERT INTO reminder VALUES (1, 1, 22, 45)")
+            }
+            if (version == 3) {
+                db.execSQL("ALTER TABLE preferences ADD COLUMN theme_mode TEXT NOT NULL DEFAULT 'LIGHT'")
             }
             db.version = version
         }
@@ -268,13 +288,16 @@ private class IsolatedContext(base: Context) : ContextWrapper(base) {
     override fun openOrCreateDatabase(name: String, mode: Int, factory: SQLiteDatabase.CursorFactory?, errorHandler: DatabaseErrorHandler?): SQLiteDatabase =
         super.openOrCreateDatabase(prefix + name.also { databases.add(it) }, mode, factory, errorHandler)
 
-    override fun getDatabasePath(name: String): File = super.getDatabasePath(prefix + name)
+    override fun getDatabasePath(name: String): File {
+        databases.add(name)
+        return super.getDatabasePath(prefix + name)
+    }
 
     override fun getSharedPreferences(name: String, mode: Int): SharedPreferences =
         super.getSharedPreferences(prefix + name.also { preferences.add(it) }, mode)
 
     fun cleanUp() {
-        databases.forEach { baseContext.deleteDatabase(prefix + it) }
-        preferences.forEach { baseContext.deleteSharedPreferences(prefix + it) }
+        databases.forEach { check(baseContext.deleteDatabase(prefix + it)) }
+        preferences.forEach { check(baseContext.deleteSharedPreferences(prefix + it)) }
     }
 }

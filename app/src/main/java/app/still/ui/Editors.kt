@@ -187,18 +187,11 @@ fun EntryEditor(
 
 @Composable
 fun PreferencesEditor(preferences: Preferences, busy: Boolean, onClose: () -> Unit, onSave: (Preferences) -> Unit) {
-    val initialGoal = preferences.goalKg?.let { inputNumber(preferences.unit.fromKg(it)) }.orEmpty()
     val initialHeight = preferences.heightCm?.let(::inputNumber).orEmpty()
-    var goal by rememberSaveable { mutableStateOf(initialGoal) }
     var height by rememberSaveable { mutableStateOf(initialHeight) }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
-    EditorFrame("Goal & height", busy, onClose) {
-        Text("Both fields are optional. Clear a value to remove it.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedTextField(
-            value = goal, onValueChange = { goal = it; error = null }, label = { Text("Goal weight (${preferences.unit.symbol})") },
-            modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !busy,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-        )
+    EditorFrame("Height", busy, onClose) {
+        Text("Optional. Clear the value to remove it.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedTextField(
             value = height, onValueChange = { height = it; error = null }, label = { Text("Height (cm)") },
             modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !busy,
@@ -209,12 +202,9 @@ fun PreferencesEditor(preferences: Preferences, busy: Boolean, onClose: () -> Un
         Button(
             onClick = {
                 try {
-                    val parsedGoal = parseNumber(goal, "goal", optional = true)
-                    val kg = if (goal == initialGoal) preferences.goalKg else parsedGoal?.let(preferences.unit::toKg)
                     val cm = if (height == initialHeight) preferences.heightCm else parseNumber(height, "height", optional = true)
-                    require(kg == null || kg <= 650) { "Goal weight must be at most 650 kg (1433 lb)." }
                     require(cm == null || cm <= 300) { "Height must be at most 300 cm." }
-                    onSave(preferences.copy(goalKg = kg, heightCm = cm))
+                    onSave(preferences.copy(heightCm = cm))
                 } catch (invalid: IllegalArgumentException) {
                     error = invalid.message
                 }

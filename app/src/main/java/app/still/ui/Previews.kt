@@ -5,14 +5,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import app.still.TrackerState
 import app.still.data.Entry
-import app.still.data.Preferences
 import java.time.LocalDate
 
 @Preview(name = "Fresh journal", showBackground = true, widthDp = 412, heightDp = 860)
 @Composable
 private fun EmptyJournalPreview() {
     StillTheme {
-        Surface { HomeScreen(TrackerState(loading = false), {}, {}, {}, {}) }
+        Surface { HomeScreen(TrackerState(loading = false), {}, {}, {}) }
     }
 }
 
@@ -30,7 +29,7 @@ private fun RecordedJournalPreview() {
     }
     StillTheme {
         Surface {
-            HomeScreen(TrackerState(entries, Preferences(goalKg = 70.0), loading = false), {}, {}, {}, {})
+            HomeScreen(TrackerState(entries, loading = false), {}, {}, {})
         }
     }
 }
@@ -39,6 +38,6 @@ private fun RecordedJournalPreview() {
 @Composable
 private fun DarkJournalPreview() {
     StillTheme(dark = true) {
-        Surface { HomeScreen(TrackerState(loading = false), {}, {}, {}, {}) }
+        Surface { HomeScreen(TrackerState(loading = false), {}, {}, {}) }
     }
 }

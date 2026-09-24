@@ -1,0 +1,3 @@
+Removed goal tracking and daily reminders.
+Height and the optional BMI reference remain available.
+Existing measurements are preserved, and older backups still import without goal or reminder settings.

@@ -6,8 +6,7 @@ Features:
 * Weight entries in kilograms or pounds
 * Optional body fat, waist measurements, and notes
 * Weight charts, seven-day averages, and period statistics
-* Optional goal weight and BMI reference
-* Daily reminders
+* Optional height-based BMI reference
 * System, light, and dark themes
 * Full backup and restore, including settings
 * CSV import/export and DroidWeight import
