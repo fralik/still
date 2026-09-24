@@ -46,9 +46,8 @@ existing entries, use CSV import instead.
 **Backup files are not encrypted.** Store them somewhere private. Full backups
 are limited to 16 MiB, both compressed and expanded.
 
-Older backups remain importable. Measurements, units, height, and appearance are
-preserved; retired goal and reminder settings are not restored. New backups use
-format version 3 and require app version 1.4.0 or later to restore.
+Full backups use format version 3. Earlier backup formats remain importable;
+measurements, units, height, and appearance are preserved.
 
 ### Android setup transfer
 

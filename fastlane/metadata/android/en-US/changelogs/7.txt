@@ -1,1 +1,0 @@
-The store listing now includes screenshots of the overview, trends, history, and dark theme. App behavior is unchanged.

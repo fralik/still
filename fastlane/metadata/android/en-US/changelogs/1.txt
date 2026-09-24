@@ -1,0 +1,3 @@
+Initial release.
+
+Track daily weight, optional body fat and waist measurements, and notes. Review charts and trends, choose kilograms or pounds, and use system, light, or dark appearance. Transfer your journal with full backups, CSV, or DroidWeight import.

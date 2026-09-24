@@ -1,2 +1,0 @@
-New check-ins now show "Enter weight" instead of the previous weight as a placeholder.
-Editing an existing check-in still shows its saved weight.
